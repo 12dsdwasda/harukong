@@ -381,10 +381,17 @@ button{
 .cal-weekdays .sun{color:var(--blossom-deep);}
 .cal-weekdays .sat{color:var(--mood-sad-dark);}
 
-.cal-scroll{padding:2px calc(var(--pad-x) - 6px) 10px;}
+.cal-scroll{
+  padding:2px calc(var(--pad-x) - 6px) 10px;
+  display:flex;flex-direction:column;
+}
+/* 화면이 남으면 주 사이 간격을 고르게 벌려 캘린더가 허전해 보이지 않게 합니다 */
 .cal-grid{
+  flex:1 0 auto;
   display:grid;grid-template-columns:repeat(7,minmax(0,1fr));
-  gap:clamp(2px,1vw,5px);
+  column-gap:clamp(2px,1vw,5px);
+  row-gap:clamp(2px,1vw,5px);
+  align-content:space-evenly;
 }
 .cal-cell{
   aspect-ratio:1/1;
