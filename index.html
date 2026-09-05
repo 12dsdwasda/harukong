@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>하루콩 — 오늘 기분을 심으면 캘린더에 콩이 자라요</title>
+<meta name="description" content="오늘의 기분과 활동을 기록하면 캘린더에 콩이 자라나는 감정 일기장.">
+<meta name="theme-color" content="#FFFCF5" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#211C16" media="(prefers-color-scheme: dark)">
+<meta name="color-scheme" content="light dark">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="하루콩">
+<meta name="format-detection" content="telephone=no">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" href="./icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="./icon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jua&family=Gowun+Dodum&family=Gaegu:wght@400;700&display=swap">
+<link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+
+<div class="app" id="app">
+
+  <header class="appbar">
+    <div class="appbar-brand">
+      <span class="appbar-sprout" aria-hidden="true">🌱</span>
+      <span class="appbar-title">하루콩</span>
+    </div>
+    <button class="sync-pill" id="sync-pill" type="button" aria-live="polite">
+      <span class="sync-dot" id="sync-dot"></span>
+      <span id="sync-text">연결 중…</span>
+    </button>
+  </header>
+
+  <main class="pages">
+
+    <!-- ---------------- HOME ---------------- -->
+    <section class="page active" id="page-home" aria-label="오늘 기록">
+      <div class="home-header">
+        <p class="home-date" id="home-date">&nbsp;</p>
+        <h1 class="home-greeting" id="home-greeting">오늘 하루는 어땠나요?</h1>
+      </div>
+
+      <div class="scroll home-scroll">
+        <div id="done-banner-slot"></div>
+
+        <div class="mascot-stage">
+          <p class="mascot-bubble" id="mascot-bubble">기분을 골라주면 콩이가 알려줄게요</p>
+          <div class="mascot-wrap" id="mascot-wrap" aria-hidden="true"></div>
+        </div>
+
+        <section class="picker-section">
+          <h2 class="picker-label">오늘의 기분 <span class="req">필수</span></h2>
+          <div class="mood-row" id="mood-row" role="radiogroup" aria-label="오늘의 기분"></div>
+        </section>
+
+        <section class="picker-section">
+          <h2 class="picker-label">취미활동</h2>
+          <div class="tag-grid" id="hobby-grid"></div>
+        </section>
+
+        <section class="picker-section">
+          <h2 class="picker-label">자기관리</h2>
+          <div class="tag-grid" id="care-grid"></div>
+        </section>
+      </div>
+
+      <div class="save-bar">
+        <button class="save-btn oneliner" id="btn-oneliner" type="button">
+          <span>✏️ 한 줄 오늘</span><small>짧게 기록하기</small>
+        </button>
+        <button class="save-btn diary" id="btn-diary" type="button">
+          <span>📔 일기 쓰기</span><small>자세히 기록하기</small>
+        </button>
+      </div>
+    </section>
+
+    <!-- ---------------- CALENDAR ---------------- -->
+    <section class="page" id="page-calendar" aria-label="캘린더">
+      <div class="cal-header">
+        <h1 id="cal-title">캘린더</h1>
+        <div class="cal-nav">
+          <button id="cal-prev" type="button" aria-label="이전 달">‹</button>
+          <button id="cal-today" type="button" class="cal-today-btn">오늘</button>
+          <button id="cal-next" type="button" aria-label="다음 달">›</button>
+        </div>
+      </div>
+      <div class="cal-weekdays" aria-hidden="true">
+        <span class="sun">일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span class="sat">토</span>
+      </div>
+      <div class="scroll cal-scroll">
+        <div class="cal-grid" id="cal-grid"></div>
+        <p class="cal-empty" id="cal-empty" hidden>이번 달에는 아직 심은 콩이 없어요 🌱</p>
+      </div>
+      <div class="cal-legend" id="cal-legend" aria-hidden="true"></div>
+    </section>
+
+  </main>
+
+  <nav class="tabbar" aria-label="주 메뉴">
+    <button class="tab active" data-tab="home" type="button">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-7 9 7"/><path d="M5 10v9a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1v-9"/></svg>
+      홈
+    </button>
+    <button class="tab" data-tab="calendar" type="button">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4M16 3v4M3 10h18"/></svg>
+      캘린더
+    </button>
+  </nav>
+
+</div>
+
+<!-- ---------------- 한 줄 오늘 ---------------- -->
+<div class="overlay" id="overlay-oneliner" role="dialog" aria-modal="true" aria-labelledby="oneliner-h">
+  <div class="sheet">
+    <div class="sheet-handle" aria-hidden="true"></div>
+    <h2 id="oneliner-h">✏️ 한 줄 오늘</h2>
+    <p class="sheet-sub">오늘을 한 문장으로 남겨보세요</p>
+    <div class="sheet-body">
+      <input type="text" id="oneliner-input" maxlength="60" enterkeyhint="done"
+             autocomplete="off" autocapitalize="sentences"
+             placeholder="예) 점심에 먹은 떡볶이가 최고였다">
+      <p class="char-count"><span id="oneliner-count">0</span>/60</p>
+    </div>
+    <div class="sheet-actions">
+      <button class="cancel" type="button" data-close="overlay-oneliner">취소</button>
+      <button class="confirm" type="button" id="oneliner-save">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- ---------------- 일기 쓰기 ---------------- -->
+<div class="overlay" id="overlay-diary" role="dialog" aria-modal="true" aria-labelledby="diary-h">
+  <div class="sheet">
+    <div class="sheet-handle" aria-hidden="true"></div>
+    <h2 id="diary-h">📔 일기 쓰기</h2>
+    <p class="sheet-sub">오늘 하루를 자유롭게 적어보세요</p>
+    <div class="sheet-body">
+      <input type="text" id="diary-title" maxlength="30" placeholder="제목 (선택)"
+             autocomplete="off" autocapitalize="sentences" enterkeyhint="next">
+      <textarea id="diary-text" maxlength="500" rows="6"
+                placeholder="오늘 있었던 일, 느꼈던 감정을 적어보세요…"></textarea>
+      <p class="char-count"><span id="diary-count">0</span>/500</p>
+    </div>
+    <div class="sheet-actions">
+      <button class="cancel" type="button" data-close="overlay-diary">취소</button>
+      <button class="confirm" type="button" id="diary-save">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- ---------------- 날짜 상세 ---------------- -->
+<div class="overlay" id="overlay-detail" role="dialog" aria-modal="true" aria-label="기록 상세">
+  <div class="sheet">
+    <div class="sheet-handle" aria-hidden="true"></div>
+    <div class="sheet-body" id="detail-body"></div>
+    <div class="sheet-actions">
+      <button class="confirm wide" type="button" data-close="overlay-detail">닫기</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="./app.js" type="module"></script>
+</body>
+</html>
