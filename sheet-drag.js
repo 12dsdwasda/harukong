@@ -23,7 +23,7 @@ export function enableSheetDrag(overlay, onClose) {
 
   function canStart(target) {
     /* 입력 중이거나 플레이어를 만지는 중에는 끌지 않습니다 */
-    if (target.closest && target.closest('input, textarea, select, iframe, .song-list, .emoji-grid')) {
+    if (target.closest && target.closest('input, textarea, select, iframe, .song-list, .emoji-grid, .crop-stage')) {
       return false;
     }
     if (!body || !body.contains(target)) return true;  // 손잡이·제목·버튼 줄

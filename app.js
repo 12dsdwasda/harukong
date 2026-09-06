@@ -5,11 +5,12 @@
    ============================================================ */
 import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from './config.js';
 import { STAGES, CANS_PER_MONTH, stageIndexFor, daysToNextStage, plantSVG } from './growth.js';
-import { MOOD_ORDER, MOODS, beanSVG } from './mood.js';
+import { MOOD_ORDER, MOODS, beanSVG, setCustomFaces, hasCustomFace } from './mood.js';
 import { buildReport, reportCardHTML } from './report.js';
 import * as spotify from './spotify.js';
 import * as player from './player.js';
 import { enableSheetDrag } from './sheet-drag.js';
+import { loadImageFile, createCropper } from './photo.js';
 
 /* ---------------- 태그 ---------------- */
 const HOBBIES = [
@@ -71,6 +72,8 @@ const LS_DELETED = 'harukong.deleted.v1';
 const LS_TAGS = 'harukong.tags.v1';
 const LS_TAGS_DELETED = 'harukong.tagsDeleted.v1';
 const LS_WATERED = 'harukong.watered.v1';
+const LS_PHOTOS = 'harukong.moodPhotos.v1';
+const LS_PHOTOS_DELETED = 'harukong.moodPhotosDeleted.v1';
 
 const MAX_CUSTOM_TAGS = 40;
 const LS_REPORT_SEEN = 'harukong.reportSeen.v1';
@@ -88,6 +91,8 @@ const state = {
   customTags: [],       // { id, kind:'hobby'|'care', emoji, label }
   pendingTagDeletes: [],
   watered: [],          // 물뿌리개로 메운 날짜들 'YYYY-MM-DD'
+  moodPhotos: {},       // { mood: { image: dataURL, updatedAt } } — 직접 올린 콩이 얼굴
+  pendingPhotoDeletes: [],
 };
 
 function normalizeEntry(raw) {
@@ -135,7 +140,16 @@ function loadLocal() {
     const w = JSON.parse(localStorage.getItem(LS_WATERED) || '[]');
     if (Array.isArray(w)) state.watered = w.filter((k) => /^\d{4}-\d{2}-\d{2}$/.test(k));
   } catch { /* noop */ }
+  try {
+    const p = JSON.parse(localStorage.getItem(LS_PHOTOS) || '{}');
+    for (const m of MOOD_ORDER) if (isValidPhoto(p[m])) state.moodPhotos[m] = p[m];
+  } catch { /* noop */ }
+  try {
+    const pd = JSON.parse(localStorage.getItem(LS_PHOTOS_DELETED) || '[]');
+    if (Array.isArray(pd)) state.pendingPhotoDeletes = pd.filter((m) => MOODS[m]);
+  } catch { /* noop */ }
   rebuildTagIndex();
+  setCustomFaces(state.moodPhotos);
 }
 
 function isValidTag(t) {
@@ -145,6 +159,23 @@ function isValidTag(t) {
     && typeof t.label === 'string' && t.label.length > 0 && t.label.length <= 12;
 }
 
+/* 사진 한 장의 상한. 288px webp 는 보통 20~40KB 라 넉넉합니다.
+   localStorage 전체가 5MB 안팎이라 다섯 장이 이를 넘으면 저장이 통째로 실패합니다. */
+const MAX_PHOTO_CHARS = 700000;
+
+function isValidPhoto(p) {
+  return !!p && typeof p.image === 'string'
+    && p.image.startsWith('data:image/')
+    && p.image.length <= MAX_PHOTO_CHARS;
+}
+
+/* 배경을 지운 사진은 그대로, 원으로 오린 사진은 CSS 테두리를 두릅니다 */
+function photoRow(mood, p) {
+  return {
+    user_id: userId, mood, image: p.image, cutout: !!p.cutout, updated_at: p.updatedAt,
+  };
+}
+
 function persist() {
   try {
     localStorage.setItem(LS_ENTRIES, JSON.stringify(state.entries));
@@ -152,6 +183,8 @@ function persist() {
     localStorage.setItem(LS_TAGS, JSON.stringify(state.customTags));
     localStorage.setItem(LS_TAGS_DELETED, JSON.stringify(state.pendingTagDeletes));
     localStorage.setItem(LS_WATERED, JSON.stringify(state.watered));
+    localStorage.setItem(LS_PHOTOS, JSON.stringify(state.moodPhotos));
+    localStorage.setItem(LS_PHOTOS_DELETED, JSON.stringify(state.pendingPhotoDeletes));
   } catch { /* 사파리 프라이빗 모드 등에서 실패할 수 있습니다 */ }
 }
 
@@ -709,6 +742,131 @@ function renderDoneBanner() {
   });
 }
 
+/* ---------------- 콩이 얼굴 꾸미기 ----------------
+   사진은 기기에 먼저 저장하고, 로그인돼 있으면 mood_photos 로 따라 올립니다.
+   기록과 같은 방식이라 오프라인에서도 그대로 동작합니다. */
+let cropper = null;
+let faceDraft = null;   // 지금 맞추고 있는 기분
+
+function openFaceSheet() {
+  renderFaceList();
+  openOverlay('overlay-face');
+}
+
+function renderFaceList() {
+  const list = $('face-list');
+  list.innerHTML = MOOD_ORDER.map((m) => {
+    const mine = hasCustomFace(m);
+    return `<li class="face-item${mine ? ' mine' : ''}">`
+      + `<span class="face-thumb">${beanSVG(m)}</span>`
+      + `<span class="face-name">${MOODS[m].label}${mine ? '<small>내 사진</small>' : ''}</span>`
+      + '<span class="face-acts">'
+      + `<button type="button" data-pick="${m}">${mine ? '바꾸기' : '사진 고르기'}</button>`
+      + (mine ? `<button type="button" class="face-drop" data-drop="${m}" aria-label="${MOODS[m].label} 되돌리기">되돌리기</button>` : '')
+      + '</span></li>';
+  }).join('');
+
+  for (const b of list.querySelectorAll('[data-pick]')) {
+    b.addEventListener('click', () => pickFacePhoto(b.dataset.pick));
+  }
+  for (const b of list.querySelectorAll('[data-drop]')) {
+    b.addEventListener('click', () => clearFacePhoto(b.dataset.drop));
+  }
+
+  const mine = MOOD_ORDER.filter(hasCustomFace).length;
+  $('face-note').textContent = !mine
+    ? '사진을 고르면 기본 콩이 대신 그 사진이 보여요. 캘린더와 리포트에도 함께 따라갑니다.'
+    : needsLogin()
+      ? '지금은 이 기기에만 저장돼요. 구글로 로그인하면 다른 기기에서도 같은 콩이가 보입니다.'
+      : '다른 기기에서 로그인해도 같은 콩이가 보여요.';
+  $('face-reset').hidden = !mine;
+}
+
+function pickFacePhoto(mood) {
+  faceDraft = mood;
+  const input = $('face-file');
+  input.value = '';
+  input.click();
+}
+
+async function onFaceFileChosen() {
+  const input = $('face-file');
+  const file = input.files && input.files[0];
+  input.value = '';
+  if (!file || !faceDraft) return;
+  try {
+    openCropSheet(await loadImageFile(file));
+  } catch {
+    toast('사진을 읽지 못했어요');
+  }
+}
+
+function openCropSheet(source) {
+  $('crop-sub').textContent = `${MOODS[faceDraft].label} 콩이로 쓸 사진이에요`;
+  $('crop-cutout').setAttribute('aria-pressed', 'false');
+  $('crop-zoom').value = '100';
+  openOverlay('overlay-crop');
+  if (!cropper) {
+    cropper = createCropper($('crop-canvas'));
+    cropper.onZoom((z) => { $('crop-zoom').value = String(Math.round(z * 100)); });
+  }
+  /* 시트에 .show 가 붙은 다음이라 크기는 바로 잽니다.
+     requestAnimationFrame 은 창이 가려져 있으면 돌지 않아 쓰지 않습니다. */
+  cropper.setSource(source);
+}
+
+function saveFacePhoto() {
+  if (!cropper || !faceDraft) return;
+  const image = cropper.toDataURL();
+  if (!image) return;
+  if (image.length > MAX_PHOTO_CHARS) { toast('사진이 너무 커요'); return; }
+
+  const mood = faceDraft;
+  const prev = state.moodPhotos[mood];
+  state.moodPhotos[mood] = { image, cutout: cropper.isCutout(), updatedAt: new Date().toISOString() };
+  try {
+    /* 다섯 장이 저장소를 넘으면 조용히 사라지는 대신 여기서 알려줍니다 */
+    localStorage.setItem(LS_PHOTOS, JSON.stringify(state.moodPhotos));
+  } catch {
+    if (prev) state.moodPhotos[mood] = prev; else delete state.moodPhotos[mood];
+    toast('저장 공간이 부족해 사진을 넣지 못했어요');
+    return;
+  }
+  state.pendingPhotoDeletes = state.pendingPhotoDeletes.filter((m) => m !== mood);
+  applyFacePhotos();
+  cloudPushPhoto(mood);
+  closeOverlay('overlay-crop');
+  toast(`${MOODS[mood].label} 콩이를 바꿨어요 🎨`);
+}
+
+function clearFacePhoto(mood) {
+  if (!state.moodPhotos[mood]) return;
+  delete state.moodPhotos[mood];
+  if (!state.pendingPhotoDeletes.includes(mood)) state.pendingPhotoDeletes.push(mood);
+  applyFacePhotos();
+  cloudDeletePhoto(mood);
+}
+
+function clearAllFacePhotos() {
+  const mine = MOOD_ORDER.filter((m) => state.moodPhotos[m]);
+  if (!mine.length) return;
+  if (!confirm('올린 사진을 모두 지우고 기본 콩이로 돌아갈까요?')) return;
+  for (const m of mine) {
+    delete state.moodPhotos[m];
+    if (!state.pendingPhotoDeletes.includes(m)) state.pendingPhotoDeletes.push(m);
+  }
+  applyFacePhotos();
+  for (const m of mine) cloudDeletePhoto(m);
+  toast('기본 콩이로 되돌렸어요');
+}
+
+function applyFacePhotos() {
+  setCustomFaces(state.moodPhotos);
+  persist();
+  renderAll();
+  if ($('overlay-face').classList.contains('show')) renderFaceList();
+}
+
 /* ---------------- 토스트 / 시트 ---------------- */
 let toastTimer = null;
 function toast(msg) {
@@ -895,6 +1053,26 @@ document.addEventListener('keydown', (e) => {
   if (e.key !== 'Escape') return;
   const open = document.querySelector('.overlay.show');
   if (open) closeOverlay(open.id);
+});
+
+$('mascot-wrap').addEventListener('click', openFaceSheet);
+$('face-file').addEventListener('change', onFaceFileChosen);
+$('face-reset').addEventListener('click', clearAllFacePhotos);
+$('crop-save').addEventListener('click', saveFacePhoto);
+$('crop-zoom').addEventListener('input', (e) => {
+  if (cropper) cropper.setZoom(Number(e.target.value) / 100);
+});
+$('crop-cutout').addEventListener('click', () => {
+  if (!cropper) return;
+  const btn = $('crop-cutout');
+  const on = btn.getAttribute('aria-pressed') !== 'true';
+  btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+  /* 배경을 훑는 데 몇십 ms 걸립니다. 눌린 모습을 먼저 그리고 계산합니다 */
+  btn.disabled = true;
+  setTimeout(() => {
+    cropper.setCutout(on);
+    btn.disabled = false;
+  }, 0);
 });
 
 $('btn-oneliner').addEventListener('click', () => {
@@ -1144,6 +1322,7 @@ async function syncAll() {
     try {
       extraChanged = (await syncTags()) || extraChanged;
       extraChanged = (await syncWatered()) || extraChanged;
+      extraChanged = (await syncPhotos()) || extraChanged;
     } catch { /* 항목·콩나무 동기화 실패는 일기 저장을 막지 않습니다 */ }
 
     if (changed || extraChanged) {
@@ -1222,6 +1401,66 @@ async function syncTags() {
   return changed;
 }
 
+/* ---------------- 콩이 얼굴 동기화 ---------------- */
+async function cloudPushPhoto(mood) {
+  if (!sb || !userId) return;
+  const p = state.moodPhotos[mood];
+  if (!p) return;
+  try {
+    const { error } = await sb.from('mood_photos').upsert(photoRow(mood, p), { onConflict: 'user_id,mood' });
+    if (error) throw error;
+  } catch { /* 다음 동기화 때 다시 올라갑니다 */ }
+}
+
+async function cloudDeletePhoto(mood) {
+  if (!sb || !userId) return;
+  try {
+    const { error } = await sb.from('mood_photos').delete().eq('user_id', userId).eq('mood', mood);
+    if (error) throw error;
+    state.pendingPhotoDeletes = state.pendingPhotoDeletes.filter((m) => m !== mood);
+    persist();
+  } catch { /* 다음 동기화 때 다시 시도합니다 */ }
+}
+
+/* 얼굴은 기분마다 한 장뿐이라 더 최근에 고친 쪽을 남깁니다 */
+async function syncPhotos() {
+  if (!sb || !userId) return false;
+  for (const m of [...state.pendingPhotoDeletes]) {
+    const { error } = await sb.from('mood_photos').delete().eq('user_id', userId).eq('mood', m);
+    if (!error) state.pendingPhotoDeletes = state.pendingPhotoDeletes.filter((x) => x !== m);
+  }
+
+  const { data, error } = await sb.from('mood_photos').select('*');
+  if (error) throw error;
+
+  const remote = new Map((data || []).map((r) => [r.mood, r]));
+  const toPush = [];
+  let changed = false;
+
+  for (const m of MOOD_ORDER) {
+    if (state.pendingPhotoDeletes.includes(m)) continue;
+    const local = state.moodPhotos[m];
+    const r = remote.get(m);
+    if (local && (!r || new Date(local.updatedAt) > new Date(r.updated_at))) {
+      toPush.push(photoRow(m, local));
+    } else if (r && (!local || new Date(r.updated_at) > new Date(local.updatedAt))) {
+      const p = { image: r.image, cutout: !!r.cutout, updatedAt: r.updated_at };
+      if (isValidPhoto(p)) { state.moodPhotos[m] = p; changed = true; }
+    }
+  }
+
+  if (toPush.length) {
+    const { error: upErr } = await sb.from('mood_photos').upsert(toPush, { onConflict: 'user_id,mood' });
+    if (upErr) throw upErr;
+  }
+
+  if (changed) {
+    setCustomFaces(state.moodPhotos);
+    if ($('overlay-face').classList.contains('show')) renderFaceList();
+  }
+  return changed;
+}
+
 /* 물뿌리개 기록은 더해지기만 하므로 양쪽을 합집합으로 맞춥니다 */
 async function syncWatered() {
   if (!sb || !userId) return false;
@@ -1244,6 +1483,9 @@ function wipeLocalEntries() {
   state.customTags = [];
   state.pendingTagDeletes = [];
   state.watered = [];
+  state.moodPhotos = {};
+  state.pendingPhotoDeletes = [];
+  setCustomFaces(state.moodPhotos);
   state.selectedMood = null;
   state.selectedHobbies = [];
   state.selectedCare = [];

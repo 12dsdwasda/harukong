@@ -70,7 +70,8 @@
 
         <div class="mascot-stage">
           <p class="mascot-bubble" id="mascot-bubble">기분을 골라주면 콩이가 알려줄게요</p>
-          <div class="mascot-wrap" id="mascot-wrap" aria-hidden="true"></div>
+          <button class="mascot-wrap" id="mascot-wrap" type="button"
+                  aria-label="콩이 꾸미기 — 내 사진으로 바꾸기"></button>
         </div>
 
         <section class="picker-section">
@@ -245,6 +246,54 @@
     <div class="sheet-actions">
       <button class="cancel" type="button" data-close="overlay-tag">취소</button>
       <button class="confirm" type="button" id="tag-save">추가</button>
+    </div>
+  </div>
+</div>
+
+<!-- ---------------- 콩이 꾸미기 ---------------- -->
+<div class="overlay" id="overlay-face" role="dialog" aria-modal="true" aria-labelledby="face-h">
+  <div class="sheet sheet-tall">
+    <div class="sheet-handle" aria-hidden="true"></div>
+    <h2 id="face-h">🎨 콩이 꾸미기</h2>
+    <p class="sheet-sub">기분마다 내 사진을 붙일 수 있어요</p>
+    <div class="sheet-body">
+      <ul class="face-list" id="face-list"></ul>
+      <p class="face-note" id="face-note"></p>
+    </div>
+    <div class="sheet-actions">
+      <button class="cancel" type="button" id="face-reset">전부 되돌리기</button>
+      <button class="confirm" type="button" data-close="overlay-face">닫기</button>
+    </div>
+  </div>
+</div>
+<input type="file" id="face-file" accept="image/*" hidden>
+
+<!-- ---------------- 사진 맞추기 ---------------- -->
+<div class="overlay" id="overlay-crop" role="dialog" aria-modal="true" aria-labelledby="crop-h">
+  <div class="sheet">
+    <div class="sheet-handle" aria-hidden="true"></div>
+    <h2 id="crop-h">사진 맞추기</h2>
+    <p class="sheet-sub" id="crop-sub">&nbsp;</p>
+    <div class="sheet-body">
+      <div class="crop-stage">
+        <canvas id="crop-canvas"></canvas>
+      </div>
+      <label class="crop-zoom">
+        <span aria-hidden="true">🔍</span>
+        <input type="range" id="crop-zoom" min="100" max="400" value="100" step="1"
+               aria-label="사진 크기">
+      </label>
+      <button class="crop-toggle" type="button" id="crop-cutout" aria-pressed="false">
+        <span class="crop-toggle-mark" aria-hidden="true"></span>
+        <span class="crop-toggle-text">배경 지우기
+          <small>흰 배경이면 깔끔하게 오려져요</small>
+        </span>
+      </button>
+      <p class="crop-hint">끌어서 위치를 잡고, 두 손가락으로 크기를 맞춰요</p>
+    </div>
+    <div class="sheet-actions">
+      <button class="cancel" type="button" data-close="overlay-crop">취소</button>
+      <button class="confirm" type="button" id="crop-save">저장</button>
     </div>
   </div>
 </div>
