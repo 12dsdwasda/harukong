@@ -326,17 +326,22 @@ function toast(msg) {
 }
 
 let lastFocused = null;
+function anyOverlayOpen() {
+  return !!document.querySelector('.overlay.show');
+}
+function syncSheetState() {
+  document.documentElement.classList.toggle('sheet-open', anyOverlayOpen());
+}
 function openOverlay(id) {
   lastFocused = document.activeElement;
   $(id).classList.add('show');
+  syncSheetState();
 }
 function closeOverlay(id) {
   $(id).classList.remove('show');
   document.documentElement.style.setProperty('--kb', '0px');
+  syncSheetState();
   if (lastFocused && lastFocused.focus) lastFocused.focus();
-}
-function anyOverlayOpen() {
-  return !!document.querySelector('.overlay.show');
 }
 
 /* ---------------- 저장 ---------------- */

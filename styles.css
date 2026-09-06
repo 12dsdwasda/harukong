@@ -617,7 +617,14 @@ button{
   transition:opacity .2s, transform .2s;
   box-shadow:0 6px 20px var(--shadow);
 }
+/* 바텀 시트가 열려 있을 때는 시트를 가리지 않도록 위로 올립니다 */
+.sheet-open .toast{
+  top:calc(var(--safe-top) + 14px);
+  bottom:auto;
+  transform:translateX(-50%) translateY(-10px);
+}
 .toast.show{opacity:1;visibility:visible;transform:translateX(-50%) translateY(0);}
+.sheet-open .toast.show{transform:translateX(-50%) translateY(0);}
 
 /* ---------------- 가로 모드 / 낮은 높이 ---------------- */
 @media (max-height:560px){
