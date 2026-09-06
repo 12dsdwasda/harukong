@@ -132,6 +132,10 @@ function escapeHTML(s) {
   ));
 }
 
+/* 익명 계정으로 새로 만들 수 있는 기록 수. DB 의 restrictive 정책과 같은 값이어야 합니다
+   (supabase/anon_limit.sql). 이미 쓴 날짜를 고치는 것은 제한하지 않습니다. */
+const ANON_ENTRY_LIMIT = 5;
+
 const LS_ENTRIES = 'harukong.entries.v1';
 const LS_DELETED = 'harukong.deleted.v1';
 
@@ -262,6 +266,36 @@ function renderHomeHeader() {
     hour < 11 ? '좋은 아침이에요 🌤️' : hour < 18 ? '오늘 하루는 어땠나요?' : '오늘 하루도 고생 많았어요 🌙';
 }
 
+/* 구글로 로그인하기 전까지는 익명 계정으로 취급합니다 */
+function isLimitedAccount() {
+  return !(account && account.signedIn && !account.anonymous);
+}
+function entryCount() {
+  return Object.keys(state.entries).length;
+}
+function limitReached() {
+  return isLimitedAccount() && entryCount() >= ANON_ENTRY_LIMIT;
+}
+/* 오늘 기록이 이미 있으면 수정이므로 개수가 늘지 않습니다 */
+function blockedByLimit() {
+  return limitReached() && !state.entries[todayKey];
+}
+
+function renderLimitBar() {
+  const bar = $('limit-bar');
+  const used = entryCount();
+  if (!isLimitedAccount() || used < ANON_ENTRY_LIMIT - 2) {
+    bar.hidden = true;
+    return;
+  }
+  const full = used >= ANON_ENTRY_LIMIT;
+  bar.hidden = false;
+  bar.classList.toggle('full', full);
+  $('limit-text').textContent = full
+    ? `로그인 없이 쓸 수 있는 ${ANON_ENTRY_LIMIT}개를 모두 채웠어요`
+    : `로그인 없이 ${used}/${ANON_ENTRY_LIMIT}개 사용했어요`;
+}
+
 function renderDoneBanner() {
   const slot = $('done-banner-slot');
   const e = state.entries[todayKey];
@@ -309,6 +343,10 @@ function anyOverlayOpen() {
 function saveEntry(kind, payload) {
   if (!state.selectedMood) {
     toast('먼저 오늘 기분을 골라주세요 🌱');
+    return false;
+  }
+  if (blockedByLimit()) {
+    promptSignIn();
     return false;
   }
   state.entries[todayKey] = {
@@ -424,6 +462,7 @@ function renderAll() {
   renderMoodRow();
   renderTagGrid($('hobby-grid'), HOBBIES, state.selectedHobbies, false);
   renderTagGrid($('care-grid'), SELFCARE, state.selectedCare, true);
+  renderLimitBar();
   if ($('page-calendar').classList.contains('active')) renderCalendar();
 }
 
@@ -445,6 +484,7 @@ document.addEventListener('keydown', (e) => {
 
 $('btn-oneliner').addEventListener('click', () => {
   if (!state.selectedMood) { toast('먼저 오늘 기분을 골라주세요 🌱'); return; }
+  if (blockedByLimit()) { promptSignIn(); return; }
   const cur = state.entries[todayKey];
   const val = cur && cur.kind === 'oneliner' ? cur.body : '';
   $('oneliner-input').value = val;
@@ -470,6 +510,7 @@ $('oneliner-save').addEventListener('click', () => {
 
 $('btn-diary').addEventListener('click', () => {
   if (!state.selectedMood) { toast('먼저 오늘 기분을 골라주세요 🌱'); return; }
+  if (blockedByLimit()) { promptSignIn(); return; }
   const cur = state.entries[todayKey];
   const isDiary = cur && cur.kind === 'diary';
   $('diary-title').value = isDiary ? cur.title : '';
@@ -661,21 +702,34 @@ async function refreshProviders() {
   } catch { /* 못 읽으면 판단을 보류하고 버튼은 그대로 둡니다 */ }
 }
 
-function renderAccountSheet() {
+function renderAccountSheet(highlightLimit) {
   const body = $('account-body');
   if (!sb || !userId) {
     body.innerHTML =
       '<p class="acct-state">지금은 <b>이 기기에만</b> 저장되고 있어요.</p>'
-      + '<p class="acct-note">기록은 그대로 남아 있어요. 연결이 돌아오면 자동으로 다시 백업합니다.</p>';
+      + '<p class="acct-note">기록은 그대로 남아 있어요. 연결이 돌아오면 자동으로 다시 백업합니다.</p>'
+      + (limitReached()
+        ? `<p class="acct-note warn">로그인 없이 쓸 수 있는 ${ANON_ENTRY_LIMIT}개를 모두 채웠어요.</p>`
+        : '');
   } else if (account.anonymous) {
-    body.innerHTML =
-      '<p class="acct-state">기록이 <b>클라우드에 백업</b>되고 있어요.</p>'
-      + '<p class="acct-note">지금은 이 브라우저에만 연결된 임시 계정이에요. '
-      + '구글로 로그인하면 다른 기기에서도 같은 일기를 볼 수 있고, 지금까지 쓴 기록도 그대로 따라갑니다.</p>';
+    const used = entryCount();
+    const left = Math.max(0, ANON_ENTRY_LIMIT - used);
+    body.innerHTML = limitReached()
+      ? `<p class="acct-state">로그인 없이 쓸 수 있는 <b>${ANON_ENTRY_LIMIT}개를 모두 채웠어요.</b></p>`
+        + '<p class="acct-note">구글로 로그인하면 이어서 계속 쓸 수 있어요. '
+        + `지금까지 쓴 ${used}개도 그대로 따라가고, 다른 기기에서도 같은 일기를 볼 수 있습니다.</p>`
+      : '<p class="acct-state">기록이 <b>클라우드에 백업</b>되고 있어요.</p>'
+        + '<p class="acct-note">지금은 이 브라우저에만 연결된 임시 계정이라 '
+        + `<b>${left}개</b>를 더 쓸 수 있어요. 구글로 로그인하면 개수 제한 없이, `
+        + '다른 기기에서도 같은 일기를 볼 수 있습니다. 지금까지 쓴 기록도 그대로 따라갑니다.</p>';
   } else {
     body.innerHTML =
       `<p class="acct-state"><b>${escapeHTML(account.email || '구글 계정')}</b><br>으로 로그인되어 있어요.</p>`
       + '<p class="acct-note">어느 기기에서든 이 계정으로 로그인하면 같은 일기를 볼 수 있어요.</p>';
+  }
+  if (highlightLimit && limitReached()) {
+    body.insertAdjacentHTML('afterbegin',
+      '<p class="acct-badge">🌱 계속 쓰려면 로그인이 필요해요</p>');
   }
   const signedInWithGoogle = account.signedIn && !account.anonymous;
   const googleReady = googleEnabled !== false;
@@ -687,11 +741,17 @@ function renderAccountSheet() {
   $('acct-signout').hidden = !signedInWithGoogle;
 }
 
-function openAccountSheet() {
-  renderAccountSheet();
+/* 제한에 걸렸을 때 계정 시트를 강조해서 엽니다 */
+function promptSignIn() {
+  toast(`로그인 없이 쓸 수 있는 ${ANON_ENTRY_LIMIT}개를 모두 채웠어요`);
+  openAccountSheet(true);
+}
+
+function openAccountSheet(highlightLimit) {
+  renderAccountSheet(highlightLimit);
   openOverlay('overlay-account');
   // 대시보드에서 방금 켰더라도 새로고침 없이 반영되도록 다시 확인합니다
-  refreshProviders().then(renderAccountSheet);
+  refreshProviders().then(() => renderAccountSheet(highlightLimit));
 }
 
 function googleErrorMessage(err) {
@@ -763,6 +823,8 @@ async function applySession(session) {
 
   setSync('syncing', '동기화 중…');
   await syncAll();
+  renderLimitBar();
+  renderDoneBanner();
   if ($('overlay-account').classList.contains('show')) renderAccountSheet();
 }
 
@@ -820,7 +882,8 @@ async function initCloud() {
   }
 }
 
-syncPill.addEventListener('click', openAccountSheet);
+syncPill.addEventListener('click', () => openAccountSheet(false));
+$('limit-login').addEventListener('click', () => openAccountSheet(true));
 $('acct-google').addEventListener('click', signInWithGoogle);
 $('acct-signout').addEventListener('click', signOutAccount);
 $('acct-sync').addEventListener('click', () => {

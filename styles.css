@@ -325,6 +325,31 @@ button{
   padding:2px 0;
 }
 
+.limit-bar{
+  flex:0 0 auto;
+  display:flex;align-items:center;gap:8px;
+  padding:8px var(--pad-x);
+  background:var(--mint-pale);
+  border-top:1px solid var(--line);
+  font-size:var(--fs-tiny);
+  color:var(--mint-deep);
+  word-break:keep-all;
+}
+.limit-bar.full{
+  background:color-mix(in srgb, var(--blossom) 22%, var(--paper));
+  color:var(--blossom-deep);
+}
+.limit-bar span{flex:1 1 auto;min-width:0;line-height:1.4;}
+.limit-bar button{
+  flex:0 0 auto;
+  border:none;border-radius:999px;
+  padding:6px 12px;
+  background:var(--mint);color:#fff;
+  font-size:var(--fs-micro);font-weight:700;
+  cursor:pointer;
+}
+.limit-bar.full button{background:var(--blossom-deep);}
+
 .save-bar{
   flex:0 0 auto;
   display:flex;gap:9px;
@@ -533,6 +558,13 @@ button{
 .acct-state{margin:0 0 8px;font-size:var(--fs-base);color:var(--ink);word-break:keep-all;line-height:1.5;}
 .acct-note{margin:0 0 16px;font-size:var(--fs-small);color:var(--ink-soft);line-height:1.65;word-break:keep-all;}
 .acct-note.warn{color:var(--blossom-deep);}
+.acct-badge{
+  margin:0 0 12px;padding:9px 12px;
+  border-radius:12px;
+  background:var(--mint-pale);border:1.5px solid var(--mint);
+  color:var(--mint-deep);font-size:var(--fs-small);font-weight:700;
+  word-break:keep-all;
+}
 .btn-google{
   display:flex;align-items:center;justify-content:center;gap:9px;
   width:100%;padding:13px 12px;margin:0 0 8px;
