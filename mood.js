@@ -1,107 +1,133 @@
 /* ============================================================
    기분 정의와 콩이 얼굴 SVG.
    app.js 와 report.js 가 함께 씁니다.
+
+   왼쪽(매우 기쁨)의 밝은 하늘색에서 오른쪽(매우 슬픔)의 흐린 청회색으로
+   이어지는 파란 계열 한 벌입니다. 새싹은 다섯 모두 같은 초록입니다.
    ============================================================ */
 
-/* ---------------- 기분 정의 & 콩이 SVG ---------------- */
 export const MOOD_ORDER = ['veryhappy', 'happy', 'neutral', 'sad', 'verysad'];
+
 export const MOODS = {
   veryhappy: {
     label: '매우 기쁨', short: '최고예요',
     body: 'var(--mood-veryhappy)', dark: 'var(--mood-veryhappy-dark)',
-    leaf: '#6FAE7C', leafDeep: '#4C8C5A', angle: -8,
     phrases: ['오늘 정말 좋은 하루였네요! 🎉', '콩이도 신나요! 이 기분 오래오래 간직해요'],
   },
   happy: {
     label: '기쁨', short: '좋아요',
     body: 'var(--mood-happy)', dark: 'var(--mood-happy-dark)',
-    leaf: '#5FA06E', leafDeep: '#417955', angle: -3,
     phrases: ['기분 좋은 하루네요 :)', '작은 행복도 소중해요, 콩이가 응원할게요'],
   },
   neutral: {
     label: '중간', short: '그냥 그래요',
     body: 'var(--mood-neutral)', dark: 'var(--mood-neutral-dark)',
-    leaf: '#9BAA82', leafDeep: '#7C8C62', angle: 0,
     phrases: ['평범한 하루도 괜찮아요', '있는 그대로의 오늘을 기록해봐요'],
   },
   sad: {
     label: '슬픔', short: '속상해요',
     body: 'var(--mood-sad)', dark: 'var(--mood-sad-dark)',
-    leaf: '#8CA292', leafDeep: '#6D8375', angle: 9,
     phrases: ['오늘 조금 힘들었군요', '콩이가 옆에 있어요, 천천히 적어봐요'],
   },
   verysad: {
     label: '매우 슬픔', short: '힘들어요',
     body: 'var(--mood-verysad)', dark: 'var(--mood-verysad-dark)',
-    leaf: '#77888A', leafDeep: '#5C6C6E', angle: 20,
     phrases: ['많이 지친 하루였겠어요', '괜찮아요, 오늘은 푹 쉬어도 돼요'],
   },
 };
 
-function leafMarkup(mood, angle) {
-  const m = MOODS[mood];
-  return `<g transform="rotate(${angle} 50 22)">`
-    + `<path d="M50,27 C37,23 32,7 43,3 C48,11 50,19 50,27 Z" fill="${m.leaf}" stroke="${m.leafDeep}" stroke-width="1.2"/>`
-    + `<path d="M50,27 C63,23 68,7 57,3 C52,11 50,19 50,27 Z" fill="${m.leaf}" stroke="${m.leafDeep}" stroke-width="1.2"/>`
-    + `<line x1="50" y1="27" x2="50" y2="35" stroke="${m.leafDeep}" stroke-width="3" stroke-linecap="round"/>`
-    + `</g>`;
+/* 리포트 카드는 이미지로 저장되기 때문에 CSS 변수를 쓸 수 없습니다.
+   그럴 때 쓸 고정 색상입니다. */
+export const MOOD_HEX = {
+  veryhappy: ['#ADE5F7', '#7FCFEA'],
+  happy:     ['#7BC6F0', '#4FA8DE'],
+  neutral:   ['#92A8E8', '#6C82D6'],
+  sad:       ['#6B86DC', '#4E68C4'],
+  verysad:   ['#7C89A9', '#5E6B8C'],
+};
+
+const INK = '#1E2430';
+
+/* 다섯 모두 같은 새싹을 답니다 */
+const SPROUT =
+  '<path d="M50,31 L50,15" stroke="#2F9B49" stroke-width="2.6" stroke-linecap="round" fill="none"/>'
+  + '<ellipse cx="42.5" cy="12" rx="6.4" ry="3.7" fill="#47B860" transform="rotate(-32 42.5 12)"/>'
+  + '<ellipse cx="57.5" cy="12" rx="6.4" ry="3.7" fill="#47B860" transform="rotate(32 57.5 12)"/>';
+
+const EYES =
+  `<circle cx="38" cy="56" r="3.9" fill="${INK}"/>`
+  + `<circle cx="62" cy="56" r="3.9" fill="${INK}"/>`;
+
+function heart(x, y, s) {
+  return `<path d="M${x},${y + 3.1 * s} C${x - 2.7 * s},${y + 0.5 * s} ${x - 2.7 * s},${y - 2.2 * s} ${x},${y - 0.7 * s}`
+    + ` C${x + 2.7 * s},${y - 2.2 * s} ${x + 2.7 * s},${y + 0.5 * s} ${x},${y + 3.1 * s} Z" fill="#F4626B"/>`;
 }
 
-function faceMarkup(mood) {
+function cloud(x, y) {
+  return `<g fill="#4A4F58">`
+    + `<circle cx="${x - 5.5}" cy="${y + 1.5}" r="5"/>`
+    + `<circle cx="${x + 1}" cy="${y - 2.5}" r="6.4"/>`
+    + `<circle cx="${x + 7}" cy="${y + 1}" r="5.2"/>`
+    + `<rect x="${x - 10}" y="${y + 0.5}" width="21" height="6" rx="3"/>`
+    + '</g>';
+}
+
+function bolt(x, y) {
+  return `<path d="M${x + 1.6},${y} L${x - 2.4},${y + 6} L${x + 0.4},${y + 6} L${x - 1.4},${y + 11.5}`
+    + ` L${x + 3.4},${y + 4.6} L${x + 0.4},${y + 4.6} Z" fill="#FFD400"/>`;
+}
+
+/* 원 뒤에 깔리는 장식 */
+function backdropFor(mood) {
   switch (mood) {
     case 'veryhappy':
-      return '<path d="M20,55 Q27,47 34,55" stroke="#4A4038" stroke-width="3.2" fill="none" stroke-linecap="round"/>'
-        + '<path d="M66,55 Q73,47 80,55" stroke="#4A4038" stroke-width="3.2" fill="none" stroke-linecap="round"/>'
-        + '<ellipse cx="26" cy="66" rx="6.5" ry="4.2" fill="#F49CAE" opacity=".6"/>'
-        + '<ellipse cx="74" cy="66" rx="6.5" ry="4.2" fill="#F49CAE" opacity=".6"/>'
-        + '<path d="M33,70 Q50,90 67,70 Q50,80 33,70 Z" fill="#4A4038"/>'
-        + '<g stroke="#E0A63A" stroke-width="2.4" stroke-linecap="round">'
-        + '<path d="M10,40 l6,6M16,40 l-6,6"/><path d="M84,36 l6,6M90,36 l-6,6"/></g>';
+      return heart(76, 22, 1.9) + heart(88, 31, 1.5) + heart(83, 12, 1.2);
     case 'happy':
-      return '<circle cx="29" cy="58" r="3.6" fill="#4A4038"/><circle cx="30" cy="57" r="1" fill="#fff"/>'
-        + '<circle cx="71" cy="58" r="3.6" fill="#4A4038"/><circle cx="72" cy="57" r="1" fill="#fff"/>'
-        + '<ellipse cx="27" cy="67" rx="5.5" ry="3.6" fill="#F49CAE" opacity=".5"/>'
-        + '<ellipse cx="73" cy="67" rx="5.5" ry="3.6" fill="#F49CAE" opacity=".5"/>'
-        + '<path d="M36,73 Q50,84 64,73" stroke="#4A4038" stroke-width="3" fill="none" stroke-linecap="round"/>';
-    case 'neutral':
-      return '<circle cx="30" cy="60" r="3.2" fill="#4A4038"/>'
-        + '<circle cx="70" cy="60" r="3.2" fill="#4A4038"/>'
-        + '<line x1="39" y1="76" x2="61" y2="76" stroke="#4A4038" stroke-width="3" stroke-linecap="round"/>';
+      return '<g stroke="#FFCE3D" stroke-width="3" stroke-linecap="round">'
+        + '<path d="M14,36 L22,34 M15,44 L23,43 M17,52 L25,52"/>'
+        + '<path d="M86,36 L78,34 M85,44 L77,43 M83,52 L75,52"/>'
+        + '</g>';
     case 'sad':
-      return '<path d="M23,57 Q29,62 35,58" stroke="#4A4038" stroke-width="2.8" fill="none" stroke-linecap="round"/>'
-        + '<path d="M65,58 Q71,62 77,57" stroke="#4A4038" stroke-width="2.8" fill="none" stroke-linecap="round"/>'
-        + '<path d="M74,64 q4,7 0,12 q-4,-2 -4,-7 q0,-3 4,-5 Z" fill="#89A9BC"/>'
-        + '<path d="M37,80 Q50,70 63,80" stroke="#4A4038" stroke-width="3" fill="none" stroke-linecap="round"/>';
+      return '<g stroke="#6C8FE8" stroke-width="3.2" stroke-linecap="round">'
+        + '<path d="M26,16 L24,26 M35,12 L33,22 M65,12 L63,22 M74,16 L72,26"/>'
+        + '</g>';
     case 'verysad':
-      return '<path d="M21,54 L33,61 M33,54 L21,61" stroke="#4A4038" stroke-width="2.6" stroke-linecap="round"/>'
-        + '<path d="M67,54 L79,61 M79,54 L67,61" stroke="#4A4038" stroke-width="2.6" stroke-linecap="round"/>'
-        + '<path d="M21,63 q5,8 0,13 q-5,-2 -5,-8 q0,-3 5,-5 Z" fill="#89A9BC"/>'
-        + '<path d="M79,63 q5,8 0,13 q-5,-2 -5,-8 q0,-3 5,-5 Z" fill="#89A9BC"/>'
-        + '<path d="M35,84 Q50,70 65,84" stroke="#4A4038" stroke-width="3.4" fill="none" stroke-linecap="round"/>'
-        + '<ellipse cx="50" cy="2" rx="16" ry="6" fill="#B7C6CE"/>'
-        + '<g stroke="#93AEBC" stroke-width="2" stroke-linecap="round"><path d="M42,9 l-2,6"/><path d="M50,10 l-2,6"/><path d="M58,9 l-2,6"/></g>';
+      return cloud(17, 17) + cloud(83, 17) + bolt(20, 26) + bolt(80, 26);
     default:
       return '';
   }
 }
 
-/* 리포트 카드는 이미지로 저장되기 때문에 CSS 변수를 쓸 수 없습니다.
-   그럴 때 쓸 고정 색상입니다. */
-export const MOOD_HEX = {
-  veryhappy: ['#F6C667', '#E0A63A'],
-  happy:     ['#BFE3B0', '#8FC17E'],
-  neutral:   ['#EADFC0', '#D2C29A'],
-  sad:       ['#B9CBD6', '#93AEBC'],
-  verysad:   ['#93A6B4', '#748A99'],
-};
+function faceFor(mood) {
+  switch (mood) {
+    case 'veryhappy':
+      /* 크게 벌린 입 */
+      return EYES + `<path d="M36,63 Q50,80 64,63 Z" fill="${INK}"/>`;
+    case 'happy':
+      return EYES + `<path d="M39,64 Q50,74 61,64" stroke="${INK}" stroke-width="3.4" fill="none" stroke-linecap="round"/>`;
+    case 'neutral':
+      return EYES + `<path d="M42,67 L58,67" stroke="${INK}" stroke-width="3.4" stroke-linecap="round"/>`;
+    case 'sad':
+      /* 걱정스러운 눈썹 + 내려간 입 */
+      return `<g stroke="${INK}" stroke-width="2.8" stroke-linecap="round">`
+        + '<path d="M32,48 L42,51 M68,48 L58,51"/></g>'
+        + EYES
+        + `<path d="M39,72 Q50,63 61,72" stroke="${INK}" stroke-width="3.4" fill="none" stroke-linecap="round"/>`;
+    case 'verysad':
+      return EYES + `<path d="M38,73 Q50,61 62,73" stroke="${INK}" stroke-width="3.6" fill="none" stroke-linecap="round"/>`;
+    default:
+      return EYES;
+  }
+}
 
 export function beanSVG(mood, literal) {
   const m = MOODS[mood] ? mood : 'neutral';
   const c = MOODS[m];
-  const [body, dark] = literal ? MOOD_HEX[m] : [c.body, c.dark];
+  const body = literal ? MOOD_HEX[m][0] : c.body;
   return '<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">'
-    + leafMarkup(m, c.angle)
-    + `<ellipse cx="50" cy="64" rx="35" ry="31" fill="${body}" stroke="${dark}" stroke-width="2"/>`
-    + faceMarkup(m)
+    + backdropFor(m)
+    + SPROUT
+    + `<circle cx="50" cy="60" r="32" fill="${body}"/>`
+    + faceFor(m)
     + '</svg>';
 }
