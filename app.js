@@ -92,8 +92,11 @@ function normalizeEntry(raw) {
   const mood = MOODS[raw.mood] ? raw.mood : 'neutral';
   return {
     mood,
-    hobbies: Array.isArray(raw.hobbies) ? raw.hobbies.filter((i) => TAG_BY_ID.has(i)) : [],
-    care: Array.isArray(raw.care) ? raw.care.filter((i) => TAG_BY_ID.has(i)) : [],
+    /* 아직 목록에 없는 id 도 그대로 둡니다. 직접 만든 항목은 클라우드에서
+       나중에 도착할 수 있어서, 여기서 걸러내면 선택이 통째로 사라집니다.
+       화면에 그릴 때 아는 것만 보여주면 됩니다. */
+    hobbies: Array.isArray(raw.hobbies) ? raw.hobbies.filter((i) => typeof i === 'string') : [],
+    care: Array.isArray(raw.care) ? raw.care.filter((i) => typeof i === 'string') : [],
     kind: raw.kind === 'diary' || raw.type === 'diary' ? 'diary' : 'oneliner',
     title: typeof raw.title === 'string' ? raw.title : '',
     body: typeof raw.body === 'string' ? raw.body : (typeof raw.text === 'string' ? raw.text : ''),
@@ -102,6 +105,13 @@ function normalizeEntry(raw) {
 }
 
 function loadLocal() {
+  /* 직접 만든 항목을 먼저 싣고 색인을 만든 다음 일기를 읽습니다 */
+  try {
+    const t = JSON.parse(localStorage.getItem(LS_TAGS) || '[]');
+    if (Array.isArray(t)) state.customTags = t.filter(isValidTag);
+  } catch { /* noop */ }
+  rebuildTagIndex();
+
   try {
     const raw = JSON.parse(localStorage.getItem(LS_ENTRIES) || '{}');
     for (const [k, v] of Object.entries(raw)) {
@@ -112,10 +122,6 @@ function loadLocal() {
   try {
     const d = JSON.parse(localStorage.getItem(LS_DELETED) || '[]');
     if (Array.isArray(d)) state.pendingDeletes = d;
-  } catch { /* noop */ }
-  try {
-    const t = JSON.parse(localStorage.getItem(LS_TAGS) || '[]');
-    if (Array.isArray(t)) state.customTags = t.filter(isValidTag);
   } catch { /* noop */ }
   try {
     const td = JSON.parse(localStorage.getItem(LS_TAGS_DELETED) || '[]');
