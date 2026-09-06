@@ -376,7 +376,7 @@ function renderGrowth() {
   const stage = STAGES[idx];
   const withered = streak === 0 && Object.keys(state.entries).length > 0;
 
-  $('grow-plant').innerHTML = plantSVG(idx, withered);
+  $('grow-plant').innerHTML = plantSVG(idx, withered, true);
   $('grow-streak').textContent = streak > 0
     ? `${streak}일째 이어가는 중`
     : (withered ? '콩나무가 기다리고 있어요' : '오늘부터 콩을 심어볼까요');

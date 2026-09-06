@@ -100,10 +100,22 @@ const PLANTS = {
     + SPARKLE,
 };
 
-/* 시든 상태: 잎이 처지고 색이 빠집니다 (연속이 끊겼을 때) */
-export function plantSVG(stageIdx, withered) {
+/* 작게 보여줄 때는 빈 하늘을 잘라내야 알아볼 수 있습니다.
+   크게 보여줄 때는 자르지 않아야 "아직 자랄 자리가 남았다"는 게 보입니다. */
+const COMPACT_VIEW = {
+  seed:   '14 56 72 44',
+  sprout: '14 46 72 54',
+  leaf:   '8 42 84 58',
+  stem:   '6 30 88 70',
+  flower: '4 14 92 86',
+  fruit:  '2 10 96 90',
+};
+
+/* 시든 상태: 색이 빠집니다 (연속이 끊겼을 때) */
+export function plantSVG(stageIdx, withered, compact) {
   const key = STAGES[Math.max(0, Math.min(STAGES.length - 1, stageIdx))].key;
-  const inner = PLANTS[key];
+  const view = compact ? COMPACT_VIEW[key] : '0 0 100 100';
   const style = withered ? ' style="filter:grayscale(.65);opacity:.62"' : '';
-  return `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"${style}>${inner}</svg>`;
+  return `<svg viewBox="${view}" xmlns="http://www.w3.org/2000/svg" `
+    + `preserveAspectRatio="xMidYMax meet" aria-hidden="true"${style}>${PLANTS[key]}</svg>`;
 }
