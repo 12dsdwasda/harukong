@@ -8,6 +8,7 @@ import { STAGES, CANS_PER_MONTH, stageIndexFor, daysToNextStage, plantSVG } from
 import { MOOD_ORDER, MOODS, beanSVG } from './mood.js';
 import { buildReport, reportCardHTML } from './report.js';
 import * as spotify from './spotify.js';
+import * as player from './player.js';
 
 /* ---------------- 태그 ---------------- */
 const HOBBIES = [
@@ -271,8 +272,10 @@ function openSongSheet(target) {
   $('song-results').innerHTML = '';
   $('song-hint').textContent = '검색해서 곡을 고르면 오늘 기록에 함께 남아요';
   $('song-clear').hidden = !songDraft;
+  $('song-player-wrap').hidden = !songDraft;
   renderSongConnect();
   openOverlay('overlay-song');
+  if (songDraft) playInSheet(songDraft);
 }
 
 function renderSongConnect() {
@@ -305,18 +308,30 @@ function renderSongResults(items) {
     const btn = document.createElement('button');
     btn.type = 'button';
     if (songDraft && songDraft.id === song.id) btn.className = 'picked';
-    btn.innerHTML = songRowHTML(song);
+    btn.innerHTML = songRowHTML(song) + '<span class="song-play" aria-hidden="true">▶</span>';
     btn.addEventListener('click', () => {
       songDraft = song;
       renderSongRows();
       renderSongResults(items);
       $('song-clear').hidden = false;
-      toast(`🎵 ${song.name}`);
+      playInSheet(song);
     });
     li.appendChild(btn);
     ul.appendChild(li);
   }
   $('song-hint').textContent = items.length ? '' : '검색 결과가 없어요';
+}
+
+/* 고른 곡을 노래 시트 안에서 바로 들려줍니다 */
+async function playInSheet(song) {
+  const wrap = $('song-player-wrap');
+  wrap.hidden = false;
+  try {
+    await player.mount('song-player', song.id, { autoplay: true, height: 80 });
+  } catch {
+    wrap.hidden = true;
+    toast(`🎵 ${song.name}`);
+  }
 }
 
 async function runSongSearch() {
@@ -716,6 +731,8 @@ function openOverlay(id) {
   syncSheetState();
 }
 function closeOverlay(id) {
+  if (id === 'overlay-song') player.pause('song-player');
+  if (id === 'overlay-detail') player.pause('detail-player');
   $(id).classList.remove('show');
   document.documentElement.style.setProperty('--kb', '0px');
   syncSheetState();
@@ -820,14 +837,20 @@ function openDetail(key) {
       + `<div class="dd-date">${dateStr}</div>`
       + `<div class="dd-mood-label">${MOODS[e.mood].label}</div></div></div>`
       + (tags ? `<div class="dd-tags">${tags}</div>` : '')
-      + (e.song
-        ? `<a class="dd-song" href="${escapeHTML(e.song.url || '#')}" target="_blank" rel="noopener">`
-          + songRowHTML(e.song) + '</a>'
-        : '')
+
       + (e.title ? `<p class="dd-title">${escapeHTML(e.title)}</p>` : '')
       + `<p class="dd-text">${escapeHTML(e.body)}</p>`;
   }
+  const wrap = $('detail-player-wrap');
+  const song = e && e.song;
+  wrap.hidden = !song;
   openOverlay('overlay-detail');
+  if (song) {
+    /* 캘린더를 누른 탭 제스처가 살아 있는 동안 재생을 걸어야
+       브라우저 자동재생 차단에 걸리지 않습니다 */
+    player.mount('detail-player', song.id, { autoplay: true, height: 80 })
+      .catch(() => { wrap.hidden = true; });
+  }
 }
 
 /* ---------------- 탭 ---------------- */
@@ -943,6 +966,8 @@ $('song-q').addEventListener('keydown', (e) => {
 $('song-clear').addEventListener('click', () => {
   songDraft = null;
   renderSongRows();
+  player.pause('song-player');
+  $('song-player-wrap').hidden = true;
   $('song-clear').hidden = true;
   $('song-results').innerHTML = '';
   $('song-q').value = '';

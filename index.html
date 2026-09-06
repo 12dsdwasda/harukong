@@ -191,7 +191,12 @@
 <div class="overlay" id="overlay-detail" role="dialog" aria-modal="true" aria-label="기록 상세">
   <div class="sheet">
     <div class="sheet-handle" aria-hidden="true"></div>
-    <div class="sheet-body" id="detail-body"></div>
+    <div class="sheet-body">
+      <div id="detail-body"></div>
+      <div class="player-wrap" id="detail-player-wrap" hidden>
+        <div id="detail-player"></div>
+      </div>
+    </div>
     <div class="sheet-actions">
       <button class="confirm wide" type="button" data-close="overlay-detail">닫기</button>
     </div>
@@ -257,6 +262,9 @@
                placeholder="곡 제목이나 가수 이름">
         <ul class="song-list" id="song-results"></ul>
         <p class="song-hint" id="song-hint">검색해서 곡을 고르면 오늘 기록에 함께 남아요</p>
+        <div class="player-wrap" id="song-player-wrap" hidden>
+          <div id="song-player"></div>
+        </div>
       </div>
     </div>
     <div class="sheet-actions">
