@@ -1,5 +1,5 @@
 /* ============================================================
-   하루콩 — 감정 일기장
+   새싹콩 — 감정 일기장
    로컬 우선(local-first) 저장: 기록은 항상 이 기기에 먼저 저장되고,
    Supabase 로그인이 되면 백그라운드로 클라우드에 동기화됩니다.
    ============================================================ */
@@ -419,11 +419,11 @@ async function shareReport() {
     const blob = await new Promise((res) => canvas.toBlob(res, 'image/png'));
     if (!blob) throw new Error('no blob');
 
-    const name = `하루콩_${reportCursor.year}년${reportCursor.month}월.png`;
+    const name = `새싹콩_${reportCursor.year}년${reportCursor.month}월.png`;
     const file = new File([blob], name, { type: 'image/png' });
 
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
-      await navigator.share({ files: [file], title: '하루콩 월간 리포트' });
+      await navigator.share({ files: [file], title: '새싹콩 월간 리포트' });
     } else {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -1006,9 +1006,24 @@ const lsGet = (k) => { try { return localStorage.getItem(k); } catch { return nu
 const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch { /* noop */ } };
 const lsDel = (k) => { try { localStorage.removeItem(k); } catch { /* noop */ } };
 
+/* 구글 로그인 전에는 배지 옆에 로그인 버튼을 띄우고,
+   좁은 화면에서 둘이 부딪히지 않게 배지 문구를 줄입니다. */
+const SHORT_SYNC = {
+  ok: '저장됨',
+  syncing: '동기화 중',
+  off: '오프라인',
+  error: '동기화 실패',
+};
+
+function needsLogin() {
+  return !(account && account.signedIn && !account.anonymous);
+}
+
 function setSync(stateName, text) {
   syncPill.dataset.state = stateName;
-  syncText.textContent = text;
+  const login = needsLogin();
+  syncText.textContent = login ? (SHORT_SYNC[stateName] || text) : text;
+  $('login-btn').hidden = !login;
 }
 
 function syncedLabel() {
@@ -1405,6 +1420,11 @@ async function initCloud() {
 }
 
 syncPill.addEventListener('click', () => openAccountSheet(false));
+$('login-btn').addEventListener('click', async () => {
+  await refreshProviders();
+  if (googleEnabled === false) { openAccountSheet(false); return; }
+  signInWithGoogle();
+});
 $('limit-login').addEventListener('click', () => openAccountSheet(true));
 $('acct-google').addEventListener('click', signInWithGoogle);
 $('acct-signout').addEventListener('click', signOutAccount);

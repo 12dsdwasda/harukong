@@ -123,9 +123,9 @@ export function reportCardHTML(r) {
 
   if (r.empty) {
     return `<div class="rc" id="report-card"><div class="rc-head">`
-      + `<p class="rc-month">${monthLabel}</p><p class="rc-title">하루콩 리포트</p></div>`
+      + `<p class="rc-month">${monthLabel}</p><p class="rc-title">새싹콩 리포트</p></div>`
       + `<div class="rc-empty">이 달에는 심은 콩이 없어요 🌱</div>`
-      + `<p class="rc-foot">🌱 하루콩</p></div>`;
+      + `<p class="rc-foot">🌱 새싹콩</p></div>`;
   }
 
   const total = r.recorded || 1;
@@ -148,7 +148,7 @@ export function reportCardHTML(r) {
   return `<div class="rc" id="report-card">
   <div class="rc-head">
     <p class="rc-month">${monthLabel}</p>
-    <p class="rc-title">하루콩 리포트</p>
+    <p class="rc-title">새싹콩 리포트</p>
   </div>
 
   <div class="rc-plant">${plantSVG(r.stageIdx, false, true)}</div>
@@ -180,6 +180,6 @@ export function reportCardHTML(r) {
   ${r.songs.length ? `<p class="rc-label">이 달의 플레이리스트</p>${songRows(r.songs)}` : ''}
 
   <p class="rc-closing">${closingLine(r)}</p>
-  <p class="rc-foot">🌱 하루콩</p>
+  <p class="rc-foot">🌱 새싹콩</p>
 </div>`;
 }

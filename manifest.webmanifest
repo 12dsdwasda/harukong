@@ -1,6 +1,6 @@
 {
-  "name": "하루콩",
-  "short_name": "하루콩",
+  "name": "새싹콩",
+  "short_name": "새싹콩",
   "description": "오늘의 기분과 활동을 기록하면 캘린더에 콩이 자라나는 감정 일기장.",
   "lang": "ko",
   "start_url": "./",
@@ -10,7 +10,17 @@
   "background_color": "#FFFCF5",
   "theme_color": "#FFFCF5",
   "icons": [
-    { "src": "./icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
-    { "src": "./icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
   ]
 }

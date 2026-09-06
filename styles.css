@@ -1,5 +1,5 @@
 /* ============================================================
-   하루콩 — 감정 일기장
+   새싹콩 — 감정 일기장
    모든 크기는 뷰포트에 맞춰 clamp() 로 조절되고,
    상·하단은 env(safe-area-inset-*) 로 노치/홈 인디케이터를 피합니다.
    ============================================================ */
@@ -154,6 +154,18 @@ button{
   color:var(--mint-deep);
   letter-spacing:.01em;
 }
+.appbar-actions{display:flex;align-items:center;gap:6px;min-width:0;}
+.login-btn{
+  flex:0 0 auto;
+  border:none;border-radius:999px;
+  padding:7px 13px;
+  background:var(--mint);color:#fff;
+  font-size:var(--fs-micro);font-weight:700;
+  white-space:nowrap;cursor:pointer;
+  transition:transform .12s;
+}
+.login-btn:active{transform:scale(.95);}
+
 .sync-pill{
   display:inline-flex;align-items:center;gap:5px;
   border:1px solid var(--line);
@@ -164,7 +176,7 @@ button{
   font-size:var(--fs-micro);
   cursor:pointer;
   white-space:nowrap;
-  max-width:52%;
+  min-width:0;
   overflow:hidden;
   text-overflow:ellipsis;
 }
