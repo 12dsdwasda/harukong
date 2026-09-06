@@ -523,6 +523,7 @@ const syncText = $('sync-text');
 
 const LS_LAST_USER = 'harukong.lastUser.v1';
 const LS_MERGE_FLAG = 'harukong.mergeOnSignIn.v1';
+const LS_LAST_ANON = 'harukong.lastAnon.v1';
 
 let sb = null;
 let userId = null;
@@ -729,6 +730,7 @@ async function signOutAccount() {
   if (!ok) return;
   try { await sb.auth.signOut(); } catch { /* 세션이 이미 없어도 진행합니다 */ }
   lsDel(LS_LAST_USER);
+  lsDel(LS_LAST_ANON);
   lsDel(LS_MERGE_FLAG);
   wipeLocalEntries();
   userId = null;
@@ -740,6 +742,7 @@ async function signOutAccount() {
 
 async function applySession(session) {
   const prevUser = lsGet(LS_LAST_USER);
+  const prevAnon = lsGet(LS_LAST_ANON) === '1';
   const merging = lsGet(LS_MERGE_FLAG) === '1';
 
   userId = session.user.id;
@@ -749,11 +752,14 @@ async function applySession(session) {
     email: session.user.email || '',
   };
 
-  // 익명 → 구글 연결이 아니라 아예 다른 계정으로 바뀐 경우에는 이 기기를 비웁니다
-  if (prevUser && prevUser !== userId && !merging) wipeLocalEntries();
+  // 진짜 계정끼리 바뀐 경우에만 이 기기를 비웁니다.
+  // 직전이 익명이었다면 그 일기는 이 사람 것이므로 새 계정으로 올려 보냅니다
+  // (구글 연결이 실패해 일반 로그인으로 넘어간 경우도 여기에 해당합니다).
+  if (prevUser && prevUser !== userId && !merging && !prevAnon) wipeLocalEntries();
 
   lsDel(LS_MERGE_FLAG);
   lsSet(LS_LAST_USER, userId);
+  lsSet(LS_LAST_ANON, account.anonymous ? '1' : '0');
 
   setSync('syncing', '동기화 중…');
   await syncAll();
