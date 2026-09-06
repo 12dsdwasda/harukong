@@ -526,6 +526,27 @@ button{
 .sheet-actions .confirm{background:var(--mint);color:#fff;}
 .sheet-actions .wide{flex:1 1 100%;}
 
+/* 계정 시트 */
+.acct-state{margin:0 0 8px;font-size:var(--fs-base);color:var(--ink);word-break:keep-all;line-height:1.5;}
+.acct-note{margin:0 0 16px;font-size:var(--fs-small);color:var(--ink-soft);line-height:1.65;word-break:keep-all;}
+.acct-note.warn{color:var(--blossom-deep);}
+.btn-google{
+  display:flex;align-items:center;justify-content:center;gap:9px;
+  width:100%;padding:13px 12px;margin:0 0 8px;
+  border:1.5px solid var(--line);border-radius:14px;
+  background:var(--surface);color:var(--ink);
+  font-size:var(--fs-base);font-weight:700;cursor:pointer;
+  transition:transform .12s;
+}
+.btn-google svg{width:18px;height:18px;flex:0 0 auto;}
+.btn-google:active{transform:scale(.98);}
+.btn-ghost{
+  display:block;width:100%;padding:12px 0;margin:0;
+  border:none;background:none;
+  color:var(--ink-soft);font-size:var(--fs-small);
+  text-decoration:underline;cursor:pointer;
+}
+
 /* 날짜 상세 */
 .dd-mood{display:flex;align-items:center;gap:12px;margin-bottom:12px;}
 .dd-mood svg{width:clamp(46px,14vw,60px);height:auto;aspect-ratio:1/1;flex:0 0 auto;}

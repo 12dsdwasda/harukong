@@ -520,12 +520,26 @@ if (window.visualViewport) {
 /* ---------------- Supabase 동기화 ---------------- */
 const syncPill = $('sync-pill');
 const syncText = $('sync-text');
+
+const LS_LAST_USER = 'harukong.lastUser.v1';
+const LS_MERGE_FLAG = 'harukong.mergeOnSignIn.v1';
+
 let sb = null;
 let userId = null;
+let account = { signedIn: false, anonymous: true, email: '' };
+
+const lsGet = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
+const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch { /* noop */ } };
+const lsDel = (k) => { try { localStorage.removeItem(k); } catch { /* noop */ } };
 
 function setSync(stateName, text) {
   syncPill.dataset.state = stateName;
   syncText.textContent = text;
+}
+
+function syncedLabel() {
+  if (!sb || !userId) return '이 기기에만 저장';
+  return account.anonymous ? '클라우드 저장됨' : '구글 계정 동기화';
 }
 
 function toRow(key, e) {
@@ -550,7 +564,7 @@ async function cloudPush(key) {
     setSync('syncing', '저장 중…');
     const { error } = await sb.from('entries').upsert(toRow(key, e), { onConflict: 'user_id,entry_date' });
     if (error) throw error;
-    setSync('ok', '클라우드 저장됨');
+    setSync('ok', syncedLabel());
   } catch {
     setSync('error', '나중에 다시 동기화');
   }
@@ -563,7 +577,7 @@ async function cloudDelete(key) {
     if (error) throw error;
     state.pendingDeletes = state.pendingDeletes.filter((k) => k !== key);
     persist();
-    setSync('ok', '클라우드 저장됨');
+    setSync('ok', syncedLabel());
   } catch {
     setSync('error', '나중에 다시 동기화');
   }
@@ -614,10 +628,127 @@ async function syncAll() {
       renderAll();
     }
     persist();
-    setSync('ok', '클라우드 저장됨');
+    setSync('ok', syncedLabel());
   } catch {
     setSync('error', '동기화 실패 · 눌러서 재시도');
   }
+}
+
+/* 다른 계정으로 바뀌었을 때 이전 사용자의 기록을 이 기기에 남기지 않습니다 */
+function wipeLocalEntries() {
+  state.entries = {};
+  state.pendingDeletes = [];
+  state.selectedMood = null;
+  state.selectedHobbies = [];
+  state.selectedCare = [];
+  persist();
+  renderAll();
+}
+
+/* ---------------- 계정 ---------------- */
+function renderAccountSheet() {
+  const body = $('account-body');
+  if (!sb || !userId) {
+    body.innerHTML =
+      '<p class="acct-state">지금은 <b>이 기기에만</b> 저장되고 있어요.</p>'
+      + '<p class="acct-note">기록은 그대로 남아 있어요. 연결이 돌아오면 자동으로 다시 백업합니다.</p>';
+  } else if (account.anonymous) {
+    body.innerHTML =
+      '<p class="acct-state">기록이 <b>클라우드에 백업</b>되고 있어요.</p>'
+      + '<p class="acct-note">지금은 이 브라우저에만 연결된 임시 계정이에요. '
+      + '구글로 로그인하면 다른 기기에서도 같은 일기를 볼 수 있고, 지금까지 쓴 기록도 그대로 따라갑니다.</p>';
+  } else {
+    body.innerHTML =
+      `<p class="acct-state"><b>${escapeHTML(account.email || '구글 계정')}</b><br>으로 로그인되어 있어요.</p>`
+      + '<p class="acct-note">어느 기기에서든 이 계정으로 로그인하면 같은 일기를 볼 수 있어요.</p>';
+  }
+  const signedInWithGoogle = account.signedIn && !account.anonymous;
+  $('acct-google').hidden = signedInWithGoogle;
+  $('acct-signout').hidden = !signedInWithGoogle;
+}
+
+function openAccountSheet() {
+  renderAccountSheet();
+  openOverlay('overlay-account');
+}
+
+function googleErrorMessage(err) {
+  const msg = String((err && (err.message || err.error_description)) || '').toLowerCase();
+  if (msg.includes('not enabled') || msg.includes('unsupported provider')) {
+    return '구글 로그인이 아직 준비되지 않았어요';
+  }
+  if (msg.includes('already') && msg.includes('linked')) {
+    return '이미 다른 계정에 연결된 구글 계정이에요';
+  }
+  return '구글 로그인에 실패했어요';
+}
+
+async function signInWithGoogle() {
+  if (!sb) { toast('연결이 끊겨 있어요. 잠시 후 다시 시도해주세요'); return; }
+  const redirectTo = window.location.origin + window.location.pathname;
+  try {
+    // 익명으로 쓰던 중이면 같은 계정에 구글을 덧붙여 기존 일기를 그대로 유지합니다
+    if (account.signedIn && account.anonymous) {
+      lsSet(LS_MERGE_FLAG, '1');
+      const { error } = await sb.auth.linkIdentity({ provider: 'google', options: { redirectTo } });
+      if (!error) return;
+      lsDel(LS_MERGE_FLAG);
+    }
+    const { error } = await sb.auth.signInWithOAuth({ provider: 'google', options: { redirectTo } });
+    if (error) throw error;
+  } catch (err) {
+    lsDel(LS_MERGE_FLAG);
+    toast(googleErrorMessage(err));
+  }
+}
+
+async function signOutAccount() {
+  if (!sb) return;
+  const ok = confirm('로그아웃할까요?\n이 기기에 있는 기록은 지워지고, 다시 로그인하면 클라우드에서 그대로 불러옵니다.');
+  if (!ok) return;
+  try { await sb.auth.signOut(); } catch { /* 세션이 이미 없어도 진행합니다 */ }
+  lsDel(LS_LAST_USER);
+  lsDel(LS_MERGE_FLAG);
+  wipeLocalEntries();
+  userId = null;
+  account = { signedIn: false, anonymous: true, email: '' };
+  closeOverlay('overlay-account');
+  toast('로그아웃했어요');
+  await initCloud();
+}
+
+async function applySession(session) {
+  const prevUser = lsGet(LS_LAST_USER);
+  const merging = lsGet(LS_MERGE_FLAG) === '1';
+
+  userId = session.user.id;
+  account = {
+    signedIn: true,
+    anonymous: session.user.is_anonymous === true,
+    email: session.user.email || '',
+  };
+
+  // 익명 → 구글 연결이 아니라 아예 다른 계정으로 바뀐 경우에는 이 기기를 비웁니다
+  if (prevUser && prevUser !== userId && !merging) wipeLocalEntries();
+
+  lsDel(LS_MERGE_FLAG);
+  lsSet(LS_LAST_USER, userId);
+
+  setSync('syncing', '동기화 중…');
+  await syncAll();
+  if ($('overlay-account').classList.contains('show')) renderAccountSheet();
+}
+
+/* 구글에서 돌아왔을 때 URL 에 실린 오류를 읽고 주소창을 정리합니다 */
+function consumeAuthRedirect() {
+  const q = new URLSearchParams(window.location.search);
+  const h = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+  const err = q.get('error_description') || q.get('error') || h.get('error_description') || h.get('error');
+  const touched = err || q.has('code') || h.has('access_token');
+  if (touched) {
+    try { history.replaceState({}, '', window.location.pathname); } catch { /* noop */ }
+  }
+  if (err) toast(googleErrorMessage({ message: err }));
 }
 
 async function initCloud() {
@@ -625,10 +756,24 @@ async function initCloud() {
   try {
     const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.58.0/+esm');
     sb = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
-      auth: { persistSession: true, autoRefreshToken: true, storageKey: 'harukong.auth' },
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
+        flowType: 'pkce',
+        storageKey: 'harukong.auth',
+      },
+    });
+
+    sb.auth.onAuthStateChange((_event, session) => {
+      if (!session) return;
+      const isAnon = session.user.is_anonymous === true;
+      if (session.user.id !== userId || isAnon !== account.anonymous) applySession(session);
     });
 
     let { data: { session } } = await sb.auth.getSession();
+    consumeAuthRedirect();
+
     if (!session) {
       const { data, error } = await sb.auth.signInAnonymously();
       if (error) throw error;
@@ -636,20 +781,24 @@ async function initCloud() {
     }
     if (!session) throw new Error('no session');
 
-    userId = session.user.id;
-    await syncAll();
+    await applySession(session);
   } catch (err) {
     sb = null;
     userId = null;
-    const msg = String(err && (err.message || err.error_description) || '');
+    account = { signedIn: false, anonymous: true, email: '' };
+    const msg = String((err && (err.message || err.error_description)) || '');
     setSync('off', msg.includes('Anonymous') ? '이 기기에만 저장' : '오프라인 · 이 기기에만 저장');
   }
 }
 
-syncPill.addEventListener('click', () => {
-  if (sb && userId) syncAll();
-  else initCloud();
+syncPill.addEventListener('click', openAccountSheet);
+$('acct-google').addEventListener('click', signInWithGoogle);
+$('acct-signout').addEventListener('click', signOutAccount);
+$('acct-sync').addEventListener('click', () => {
+  if (sb && userId) syncAll().then(renderAccountSheet);
+  else initCloud().then(renderAccountSheet);
 });
+
 window.addEventListener('online', () => { if (sb && userId) syncAll(); });
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible' && sb && userId) syncAll();
