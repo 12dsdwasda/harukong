@@ -11,4 +11,4 @@ export const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_m2nif5m_jGBGkv5K4Wr1EA_Z
    준비 방법: developer.spotify.com 에서 앱을 만들고
    Redirect URI 에 https://harukong-two.vercel.app/spotify 를 등록한 뒤
    Client ID 를 여기에 붙여넣으세요. */
-export const SPOTIFY_CLIENT_ID = '';
+export const SPOTIFY_CLIENT_ID = 'f712a9a0f60b4b11a9ce4b704ea3912e';
