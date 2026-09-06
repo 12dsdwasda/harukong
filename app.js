@@ -9,6 +9,7 @@ import { MOOD_ORDER, MOODS, beanSVG } from './mood.js';
 import { buildReport, reportCardHTML } from './report.js';
 import * as spotify from './spotify.js';
 import * as player from './player.js';
+import { enableSheetDrag } from './sheet-drag.js';
 
 /* ---------------- 태그 ---------------- */
 const HOBBIES = [
@@ -888,6 +889,7 @@ for (const btn of document.querySelectorAll('[data-close]')) {
 }
 for (const ov of document.querySelectorAll('.overlay')) {
   ov.addEventListener('click', (e) => { if (e.target === ov) closeOverlay(ov.id); });
+  enableSheetDrag(ov, () => closeOverlay(ov.id));
 }
 document.addEventListener('keydown', (e) => {
   if (e.key !== 'Escape') return;
