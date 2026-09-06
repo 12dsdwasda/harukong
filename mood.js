@@ -109,8 +109,10 @@ function faceFor(mood) {
       return EYES + `<path d="M42,67 L58,67" stroke="${INK}" stroke-width="3.4" stroke-linecap="round"/>`;
     case 'sad':
       /* 걱정스러운 눈썹 + 내려간 입 */
-      return `<g stroke="${INK}" stroke-width="2.8" stroke-linecap="round">`
-        + '<path d="M32,48 L42,51 M68,48 L58,51"/></g>'
+      /* 안쪽 끝이 올라가야 걱정스러운 표정입니다.
+         반대로 그리면 화난 얼굴로 읽힙니다. */
+      return `<g stroke="${INK}" stroke-width="2.6" stroke-linecap="round">`
+        + '<path d="M33,50.5 L41,47.5 M67,50.5 L59,47.5"/></g>'
         + EYES
         + `<path d="M39,72 Q50,63 61,72" stroke="${INK}" stroke-width="3.4" fill="none" stroke-linecap="round"/>`;
     case 'verysad':
