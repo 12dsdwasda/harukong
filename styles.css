@@ -85,6 +85,9 @@
 
 *,*::before,*::after{box-sizing:border-box;}
 
+/* .btn-ghost{display:block} 같은 author 규칙이 UA 의 [hidden] 을 덮어쓰지 않도록 */
+[hidden]{display:none !important;}
+
 html{
   -webkit-text-size-adjust:100%;
   text-size-adjust:100%;
