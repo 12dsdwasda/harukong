@@ -64,9 +64,9 @@ const flower = (y) => {
 
 /* 줄기에서 바깥으로 뻗은 가지 끝에 매달린 꼬투리 */
 const pod = (x, y, dir) =>
-  `<path d="M50,${y - 4} Q${(50 + x) / 2},${y - 7} ${x},${y - 2}" stroke="#5FA06E" `
+  `<path d="M50,${y - 7} Q${(50 + x) / 2},${y - 6} ${x},${y}" stroke="#5FA06E" `
   + 'stroke-width="2" fill="none" stroke-linecap="round"/>'
-  + `<g transform="rotate(${dir * 14} ${x} ${y})">`
+  + `<g transform="rotate(${dir * 10} ${x} ${y})">`
   + `<rect x="${x - 3.8}" y="${y - 2}" width="7.6" height="16" rx="3.8" fill="#CFEAC2" stroke="#6FAE7C" stroke-width="1.4"/>`
   + `<circle cx="${x}" cy="${y + 2.6}" r="1.6" fill="#8FC17E"/>`
   + `<circle cx="${x}" cy="${y + 6.6}" r="1.6" fill="#8FC17E"/>`
@@ -99,7 +99,7 @@ const PLANTS = {
   fruit: SOIL + stem(36)
     + leaf(72, -1, 0.88) + leaf(72, 1, 0.88)
     + leaf(60, -1, 0.72) + leaf(60, 1, 0.72)
-    + pod(26, 46, -1) + pod(74, 46, 1)
+    + pod(24, 50, -1) + pod(76, 50, 1)
     + flower(29)
     + SPARKLE,
 };
