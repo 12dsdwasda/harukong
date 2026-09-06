@@ -30,12 +30,12 @@ export function daysToNextStage(streak) {
 
 /* ---------------- 그림 ---------------- */
 const SOIL =
-  '<ellipse cx="50" cy="87" rx="33" ry="8.5" fill="#7E6244"/>'
-  + '<ellipse cx="50" cy="84.5" rx="33" ry="8" fill="#9C7C56"/>';
+  '<ellipse cx="50" cy="87" rx="33" ry="8.5" fill="#7A5A34"/>'
+  + '<ellipse cx="50" cy="84.5" rx="33" ry="8" fill="#96703F"/>';
 
 const stem = (topY) =>
   `<path d="M50,84 C50,${84 - (84 - topY) * 0.45} 50,${topY + (84 - topY) * 0.25} 50,${topY}" `
-  + 'stroke="#3AA657" stroke-width="3.4" fill="none" stroke-linecap="round"/>';
+  + 'stroke="#186E22" stroke-width="4.2" fill="none" stroke-linecap="round"/>';
 
 /* dir: -1 왼쪽, 1 오른쪽 */
 const leaf = (y, dir, size) => {
@@ -44,12 +44,12 @@ const leaf = (y, dir, size) => {
   const x = 50 + dir * 2;
   return `<path d="M${x},${y} C${x + dir * w * 0.35},${y - h} ${x + dir * w},${y - h * 0.75} ${x + dir * w},${y + h * 0.15}`
     + ` C${x + dir * w * 0.6},${y + h * 0.9} ${x + dir * w * 0.15},${y + h * 0.6} ${x},${y} Z"`
-    + ' fill="#5FC77A" stroke="#2F9B49" stroke-width="1.3" stroke-linejoin="round"/>';
+    + ' fill="#28A838" stroke="#12511B" stroke-width="2" stroke-linejoin="round"/>';
 };
 
 const bud = (y) =>
   `<path d="M50,${y + 8} C43,${y + 3} 43,${y - 4} 50,${y - 6} C57,${y - 4} 57,${y + 3} 50,${y + 8} Z"`
-  + ' fill="#6FD08A" stroke="#2F9B49" stroke-width="1.4" stroke-linejoin="round"/>';
+  + ' fill="#4CC45E" stroke="#12511B" stroke-width="2" stroke-linejoin="round"/>';
 
 const flower = (y) => {
   let petals = '';
@@ -57,30 +57,30 @@ const flower = (y) => {
     const a = (i * 72 - 90) * Math.PI / 180;
     const px = 50 + Math.cos(a) * 8.5;
     const py = y + Math.sin(a) * 8.5;
-    petals += `<ellipse cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" rx="6" ry="5.4" fill="#F4949F" stroke="#E06272" stroke-width="1.2"/>`;
+    petals += `<ellipse cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" rx="6" ry="5.4" fill="#F85858" stroke="#A82424" stroke-width="2"/>`;
   }
-  return petals + `<circle cx="50" cy="${y}" r="4.2" fill="#FFD166" stroke="#E9A93C" stroke-width="1.2"/>`;
+  return petals + `<circle cx="50" cy="${y}" r="4.2" fill="#F8E030" stroke="#9A8400" stroke-width="2"/>`;
 };
 
 /* 줄기에서 바깥으로 뻗은 가지 끝에 매달린 꼬투리 */
 const pod = (x, y, dir) =>
-  `<path d="M50,${y - 7} Q${(50 + x) / 2},${y - 6} ${x},${y}" stroke="#3AA657" `
-  + 'stroke-width="2" fill="none" stroke-linecap="round"/>'
+  `<path d="M50,${y - 7} Q${(50 + x) / 2},${y - 6} ${x},${y}" stroke="#186E22" `
+  + 'stroke-width="2.6" fill="none" stroke-linecap="round"/>'
   + `<g transform="rotate(${dir * 10} ${x} ${y})">`
-  + `<rect x="${x - 3.8}" y="${y - 2}" width="7.6" height="16" rx="3.8" fill="#BFEDCD" stroke="#47B860" stroke-width="1.4"/>`
-  + `<circle cx="${x}" cy="${y + 2.6}" r="1.6" fill="#5FC77A"/>`
-  + `<circle cx="${x}" cy="${y + 6.6}" r="1.6" fill="#5FC77A"/>`
-  + `<circle cx="${x}" cy="${y + 10.6}" r="1.6" fill="#5FC77A"/>`
+  + `<rect x="${x - 3.8}" y="${y - 2}" width="7.6" height="16" rx="3.8" fill="#7FDB90" stroke="#12511B" stroke-width="2"/>`
+  + `<circle cx="${x}" cy="${y + 2.6}" r="1.6" fill="#28A838"/>`
+  + `<circle cx="${x}" cy="${y + 6.6}" r="1.6" fill="#28A838"/>`
+  + `<circle cx="${x}" cy="${y + 10.6}" r="1.6" fill="#28A838"/>`
   + '</g>';
 
 const SPARKLE =
-  '<g stroke="#E9A93C" stroke-width="2" stroke-linecap="round" opacity=".85">'
+  '<g stroke="#F8E030" stroke-width="2.8" stroke-linecap="round" opacity=".95">'
   + '<path d="M16,26 l0,7 M12.5,29.5 l7,0"/><path d="M84,20 l0,6 M81,23 l6,0"/></g>';
 
 const PLANTS = {
   seed: SOIL
-    + '<ellipse cx="50" cy="79" rx="9.5" ry="7.6" fill="#EBD9AC" stroke="#C9B183" stroke-width="1.7" transform="rotate(-14 50 79)"/>'
-    + '<path d="M46,78 q4,-3 8,0" stroke="#C9B183" stroke-width="1.2" fill="none" stroke-linecap="round"/>',
+    + '<ellipse cx="50" cy="79" rx="9.5" ry="7.6" fill="#EAD9A6" stroke="#7A5A34" stroke-width="2" transform="rotate(-14 50 79)"/>'
+    + '<path d="M46,78 q4,-3 8,0" stroke="#7A5A34" stroke-width="2" fill="none" stroke-linecap="round"/>',
 
   sprout: SOIL + stem(66) + bud(62),
 
