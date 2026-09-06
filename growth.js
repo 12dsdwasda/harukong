@@ -62,11 +62,15 @@ const flower = (y) => {
   return petals + `<circle cx="50" cy="${y}" r="4.2" fill="#F6C667" stroke="#E0A63A" stroke-width="1.2"/>`;
 };
 
+/* 줄기에서 바깥으로 뻗은 가지 끝에 매달린 꼬투리 */
 const pod = (x, y, dir) =>
-  `<g transform="rotate(${dir * 18} ${x} ${y})">`
-  + `<rect x="${x - 3.6}" y="${y}" width="7.2" height="15" rx="3.6" fill="#BFE3B0" stroke="#6FAE7C" stroke-width="1.3"/>`
-  + `<circle cx="${x}" cy="${y + 4.5}" r="1.5" fill="#8FC17E"/>`
-  + `<circle cx="${x}" cy="${y + 9}" r="1.5" fill="#8FC17E"/>`
+  `<path d="M50,${y - 4} Q${(50 + x) / 2},${y - 7} ${x},${y - 2}" stroke="#5FA06E" `
+  + 'stroke-width="2" fill="none" stroke-linecap="round"/>'
+  + `<g transform="rotate(${dir * 14} ${x} ${y})">`
+  + `<rect x="${x - 3.8}" y="${y - 2}" width="7.6" height="16" rx="3.8" fill="#CFEAC2" stroke="#6FAE7C" stroke-width="1.4"/>`
+  + `<circle cx="${x}" cy="${y + 2.6}" r="1.6" fill="#8FC17E"/>`
+  + `<circle cx="${x}" cy="${y + 6.6}" r="1.6" fill="#8FC17E"/>`
+  + `<circle cx="${x}" cy="${y + 10.6}" r="1.6" fill="#8FC17E"/>`
   + '</g>';
 
 const SPARKLE =
@@ -93,10 +97,10 @@ const PLANTS = {
     + flower(31),
 
   fruit: SOIL + stem(36)
-    + leaf(70, -1, 0.9) + leaf(70, 1, 0.9)
-    + leaf(56, -1, 0.8) + leaf(56, 1, 0.8)
+    + leaf(72, -1, 0.88) + leaf(72, 1, 0.88)
+    + leaf(60, -1, 0.72) + leaf(60, 1, 0.72)
+    + pod(26, 46, -1) + pod(74, 46, 1)
     + flower(29)
-    + pod(31, 50, -1) + pod(69, 50, 1) + pod(50, 60, 0)
     + SPARKLE,
 };
 
