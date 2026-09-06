@@ -46,6 +46,21 @@
       </div>
 
       <div class="scroll home-scroll">
+        <button class="grow-card" id="grow-card" type="button">
+          <span class="grow-plant" id="grow-plant"></span>
+          <span class="grow-info">
+            <span class="grow-streak" id="grow-streak"></span>
+            <span class="grow-stage" id="grow-stage"></span>
+            <span class="grow-track"><span class="grow-fill" id="grow-fill"></span></span>
+          </span>
+        </button>
+
+        <div class="water-prompt" id="water-prompt" hidden>
+          <span class="water-icon" aria-hidden="true">💧</span>
+          <span id="water-text"></span>
+          <button type="button" id="water-btn">물주기</button>
+        </div>
+
         <div id="done-banner-slot"></div>
 
         <div class="mascot-stage">
@@ -165,6 +180,52 @@
     <div class="sheet-body" id="detail-body"></div>
     <div class="sheet-actions">
       <button class="confirm wide" type="button" data-close="overlay-detail">닫기</button>
+    </div>
+  </div>
+</div>
+
+<!-- ---------------- 콩나무 ---------------- -->
+<div class="overlay" id="overlay-grow" role="dialog" aria-modal="true" aria-labelledby="grow-h">
+  <div class="sheet">
+    <div class="sheet-handle" aria-hidden="true"></div>
+    <h2 id="grow-h">🌱 내 콩나무</h2>
+    <p class="sheet-sub">연속으로 기록할수록 콩이가 자라요</p>
+    <div class="sheet-body">
+      <div class="grow-hero">
+        <div class="grow-hero-plant" id="grow-hero-plant"></div>
+        <p class="grow-hero-stage" id="grow-hero-stage"></p>
+        <p class="grow-hero-hint" id="grow-hero-hint"></p>
+      </div>
+      <ol class="stage-list" id="stage-list"></ol>
+      <div class="can-box">
+        <p class="can-title">💧 물뿌리개 <b id="can-left"></b></p>
+        <p class="can-note">한 달에 <b id="can-total"></b>개씩 채워져요. 하루 못 썼더라도
+          물뿌리개로 그날을 메우면 콩나무가 시들지 않아요.</p>
+      </div>
+    </div>
+    <div class="sheet-actions">
+      <button class="confirm wide" type="button" data-close="overlay-grow">닫기</button>
+    </div>
+  </div>
+</div>
+
+<!-- ---------------- 항목 추가 ---------------- -->
+<div class="overlay" id="overlay-tag" role="dialog" aria-modal="true" aria-labelledby="tag-h">
+  <div class="sheet">
+    <div class="sheet-handle" aria-hidden="true"></div>
+    <h2 id="tag-h">직접 추가하기</h2>
+    <p class="sheet-sub" id="tag-sub">자주 하는 활동을 직접 만들어 보세요</p>
+    <div class="sheet-body">
+      <p class="field-label">아이콘</p>
+      <div class="emoji-grid" id="emoji-grid"></div>
+      <p class="field-label">이름</p>
+      <input type="text" id="tag-label" maxlength="12" enterkeyhint="done"
+             autocomplete="off" placeholder="예) 러닝, 피아노, 반신욕">
+      <div id="my-tags-slot"></div>
+    </div>
+    <div class="sheet-actions">
+      <button class="cancel" type="button" data-close="overlay-tag">취소</button>
+      <button class="confirm" type="button" id="tag-save">추가</button>
     </div>
   </div>
 </div>

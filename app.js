@@ -4,6 +4,7 @@
    Supabase 로그인이 되면 백그라운드로 클라우드에 동기화됩니다.
    ============================================================ */
 import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from './config.js';
+import { STAGES, CANS_PER_MONTH, stageIndexFor, daysToNextStage, plantSVG } from './growth.js';
 
 /* ---------------- 기분 정의 & 콩이 SVG ---------------- */
 const MOOD_ORDER = ['veryhappy', 'happy', 'neutral', 'sad', 'verysad'];
@@ -118,7 +119,23 @@ const SELFCARE = [
   { id: 'gratitude', emoji: '🙏', label: '감사일기' },
   { id: 'rest', emoji: '🛋️', label: '휴식' },
 ];
-const TAG_BY_ID = new Map([...HOBBIES, ...SELFCARE].map((t) => [t.id, t]));
+/* 직접 추가한 항목에 붙일 수 있는 아이콘 */
+const EMOJI_CHOICES = [
+  '🌱','🏃','🚴','🏊','⚽','🧗','🎹','🎸',
+  '✍️','📷','🧶','🌷','🐶','🐱','☕','🍰',
+  '🛁','🧼','💊','📵','🌙','🕯️','📖','💬',
+];
+
+let TAG_BY_ID = new Map();
+function rebuildTagIndex() {
+  TAG_BY_ID = new Map([...HOBBIES, ...SELFCARE, ...state.customTags].map((t) => [t.id, t]));
+}
+function hobbyItems() {
+  return [...HOBBIES, ...state.customTags.filter((t) => t.kind === 'hobby')];
+}
+function careItems() {
+  return [...SELFCARE, ...state.customTags.filter((t) => t.kind === 'care')];
+}
 
 /* ---------------- 유틸 ---------------- */
 const $ = (id) => document.getElementById(id);
@@ -138,6 +155,11 @@ const ANON_ENTRY_LIMIT = 5;
 
 const LS_ENTRIES = 'harukong.entries.v1';
 const LS_DELETED = 'harukong.deleted.v1';
+const LS_TAGS = 'harukong.tags.v1';
+const LS_TAGS_DELETED = 'harukong.tagsDeleted.v1';
+const LS_WATERED = 'harukong.watered.v1';
+
+const MAX_CUSTOM_TAGS = 40;
 
 /* ---------------- 상태 ---------------- */
 const today = new Date();
@@ -149,6 +171,9 @@ const state = {
   selectedCare: [],
   entries: {},          // { 'YYYY-MM-DD': { mood, hobbies, care, kind, title, body, updatedAt } }
   pendingDeletes: [],   // 오프라인 중에 지운 날짜들
+  customTags: [],       // { id, kind:'hobby'|'care', emoji, label }
+  pendingTagDeletes: [],
+  watered: [],          // 물뿌리개로 메운 날짜들 'YYYY-MM-DD'
 };
 
 function normalizeEntry(raw) {
@@ -177,12 +202,35 @@ function loadLocal() {
     const d = JSON.parse(localStorage.getItem(LS_DELETED) || '[]');
     if (Array.isArray(d)) state.pendingDeletes = d;
   } catch { /* noop */ }
+  try {
+    const t = JSON.parse(localStorage.getItem(LS_TAGS) || '[]');
+    if (Array.isArray(t)) state.customTags = t.filter(isValidTag);
+  } catch { /* noop */ }
+  try {
+    const td = JSON.parse(localStorage.getItem(LS_TAGS_DELETED) || '[]');
+    if (Array.isArray(td)) state.pendingTagDeletes = td;
+  } catch { /* noop */ }
+  try {
+    const w = JSON.parse(localStorage.getItem(LS_WATERED) || '[]');
+    if (Array.isArray(w)) state.watered = w.filter((k) => /^\d{4}-\d{2}-\d{2}$/.test(k));
+  } catch { /* noop */ }
+  rebuildTagIndex();
+}
+
+function isValidTag(t) {
+  return !!t && typeof t.id === 'string'
+    && (t.kind === 'hobby' || t.kind === 'care')
+    && typeof t.emoji === 'string' && t.emoji
+    && typeof t.label === 'string' && t.label.length > 0 && t.label.length <= 12;
 }
 
 function persist() {
   try {
     localStorage.setItem(LS_ENTRIES, JSON.stringify(state.entries));
     localStorage.setItem(LS_DELETED, JSON.stringify(state.pendingDeletes));
+    localStorage.setItem(LS_TAGS, JSON.stringify(state.customTags));
+    localStorage.setItem(LS_TAGS_DELETED, JSON.stringify(state.pendingTagDeletes));
+    localStorage.setItem(LS_WATERED, JSON.stringify(state.watered));
   } catch { /* 사파리 프라이빗 모드 등에서 실패할 수 있습니다 */ }
 }
 
@@ -255,6 +303,13 @@ function renderTagGrid(container, items, selectedArr, careStyle) {
     });
     container.appendChild(chip);
   }
+
+  const add = document.createElement('button');
+  add.type = 'button';
+  add.className = 'tag-chip add-chip';
+  add.innerHTML = '<span class="tag-emoji">＋</span><span class="tag-name">직접 추가</span>';
+  add.addEventListener('click', () => openTagSheet(careStyle ? 'care' : 'hobby'));
+  container.appendChild(add);
 }
 
 /* ---------------- 렌더: 홈 헤더 ---------------- */
@@ -264,6 +319,205 @@ function renderHomeHeader() {
   const hour = new Date().getHours();
   $('home-greeting').textContent =
     hour < 11 ? '좋은 아침이에요 🌤️' : hour < 18 ? '오늘 하루는 어땠나요?' : '오늘 하루도 고생 많았어요 🌙';
+}
+
+/* ---------------- 콩나무 ---------------- */
+function dayKeyBefore(n) {
+  const d = new Date(today);
+  d.setDate(d.getDate() - n);
+  return dateKey(d);
+}
+function isKept(key) {
+  return !!state.entries[key] || state.watered.includes(key);
+}
+
+/* 오늘 아직 안 썼더라도 어제까지 이어져 있으면 연속은 살아 있습니다 */
+function computeStreak() {
+  let n = isKept(todayKey) ? 0 : 1;
+  let streak = 0;
+  for (let i = 0; i < 3660; i++, n++) {
+    if (!isKept(dayKeyBefore(n))) break;
+    streak++;
+  }
+  return streak;
+}
+
+/* 마지막으로 이어진 날과 오늘 사이의 빈 날들 (오늘은 제외) */
+function missedDays() {
+  const gaps = [];
+  for (let n = 1; n <= 7; n++) {
+    const k = dayKeyBefore(n);
+    if (isKept(k)) break;
+    gaps.push(k);
+  }
+  return gaps;
+}
+function cansUsedThisMonth() {
+  const m = todayKey.slice(0, 7);
+  return state.watered.filter((k) => k.slice(0, 7) === m).length;
+}
+function cansLeft() {
+  return Math.max(0, CANS_PER_MONTH - cansUsedThisMonth());
+}
+/* 이어붙일 수 있는 상태인지: 이전 기록이 있고, 남은 물뿌리개로 빈 날을 메울 수 있을 때 */
+function rescuePlan() {
+  const gaps = missedDays();
+  if (!gaps.length) return null;
+  const oldest = gaps[gaps.length - 1];
+  const hasHistory = Object.keys(state.entries).some((k) => k < oldest);
+  if (!hasHistory) return null;
+  if (gaps.length > cansLeft()) return null;
+  return gaps;
+}
+
+function renderGrowth() {
+  const streak = computeStreak();
+  const idx = stageIndexFor(streak);
+  const stage = STAGES[idx];
+  const withered = streak === 0 && Object.keys(state.entries).length > 0;
+
+  $('grow-plant').innerHTML = plantSVG(idx, withered);
+  $('grow-streak').textContent = streak > 0
+    ? `${streak}일째 이어가는 중`
+    : (withered ? '콩나무가 기다리고 있어요' : '오늘부터 콩을 심어볼까요');
+
+  const left = daysToNextStage(streak);
+  const next = STAGES[idx + 1];
+  $('grow-stage').textContent = next
+    ? `${stage.name} · ${next.name}까지 ${left}일`
+    : `${stage.name} · 다 자랐어요!`;
+
+  const base = stage.min;
+  const span = next ? next.min - base : 1;
+  const pct = next ? Math.min(100, Math.round(((streak - base) / span) * 100)) : 100;
+  $('grow-fill').style.width = `${Math.max(4, pct)}%`;
+
+  const plan = rescuePlan();
+  const prompt = $('water-prompt');
+  if (plan) {
+    prompt.hidden = false;
+    const days = plan.length === 1 ? '어제' : `최근 ${plan.length}일`;
+    $('water-text').textContent =
+      `${days} 기록을 놓쳤어요. 물뿌리개 ${plan.length}개로 이어갈 수 있어요 (${cansLeft()}개 남음)`;
+  } else {
+    prompt.hidden = true;
+  }
+}
+
+function useWateringCan() {
+  const plan = rescuePlan();
+  if (!plan) return;
+  for (const k of plan) if (!state.watered.includes(k)) state.watered.push(k);
+  state.watered.sort();
+  persist();
+  renderGrowth();
+  cloudPushState();
+  toast('물뿌리개로 콩나무를 살렸어요 💧');
+}
+
+function renderGrowSheet() {
+  const streak = computeStreak();
+  const idx = stageIndexFor(streak);
+  const stage = STAGES[idx];
+  const withered = streak === 0 && Object.keys(state.entries).length > 0;
+
+  $('grow-hero-plant').innerHTML = plantSVG(idx, withered);
+  $('grow-hero-stage').textContent = streak > 0 ? `${stage.name} · ${streak}일째` : stage.name;
+  $('grow-hero-hint').textContent = stage.hint;
+
+  $('stage-list').innerHTML = STAGES.map((st, i) => {
+    const cls = i === idx ? 'current' : (i < idx ? 'done' : '');
+    const mark = i < idx ? '✓' : (i === idx ? '🌱' : '·');
+    const days = st.min === 0 ? '시작' : `${st.min}일`;
+    return `<li class="${cls}"><span class="st-mark">${mark}</span>`
+      + `<span class="st-name">${st.name}</span><span class="st-days">${days}</span></li>`;
+  }).join('');
+
+  $('can-left').textContent = `${cansLeft()}개 남음`;
+  $('can-total').textContent = String(CANS_PER_MONTH);
+}
+
+/* ---------------- 직접 추가한 항목 ---------------- */
+let tagDraft = { kind: 'hobby', emoji: EMOJI_CHOICES[0] };
+
+function openTagSheet(kind) {
+  tagDraft = { kind, emoji: EMOJI_CHOICES[0] };
+  $('tag-sub').textContent = kind === 'hobby'
+    ? '자주 하는 취미를 직접 만들어 보세요'
+    : '나만의 자기관리 항목을 만들어 보세요';
+  $('tag-label').value = '';
+  renderEmojiGrid();
+  renderMyTags();
+  openOverlay('overlay-tag');
+  setTimeout(() => $('tag-label').focus(), 120);
+}
+
+function renderEmojiGrid() {
+  const grid = $('emoji-grid');
+  grid.innerHTML = '';
+  for (const e of EMOJI_CHOICES) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = e;
+    b.className = e === tagDraft.emoji ? 'selected' : '';
+    b.setAttribute('aria-label', `아이콘 ${e}`);
+    b.addEventListener('click', () => { tagDraft.emoji = e; renderEmojiGrid(); });
+    grid.appendChild(b);
+  }
+}
+
+function renderMyTags() {
+  const slot = $('my-tags-slot');
+  const mine = state.customTags.filter((t) => t.kind === tagDraft.kind);
+  if (!mine.length) { slot.innerHTML = ''; return; }
+  slot.innerHTML = '<div class="my-tags"><h3>내가 만든 항목</h3><ul>'
+    + mine.map((t) => `<li>${t.emoji} ${escapeHTML(t.label)}`
+      + `<button type="button" data-del="${escapeHTML(t.id)}" aria-label="${escapeHTML(t.label)} 삭제">×</button></li>`).join('')
+    + '</ul></div>';
+  for (const btn of slot.querySelectorAll('[data-del]')) {
+    btn.addEventListener('click', () => removeCustomTag(btn.dataset.del));
+  }
+}
+
+function addCustomTag() {
+  const label = $('tag-label').value.trim();
+  if (!label) { toast('이름을 적어주세요'); return; }
+  if (state.customTags.length >= MAX_CUSTOM_TAGS) {
+    toast(`직접 만든 항목은 ${MAX_CUSTOM_TAGS}개까지예요`);
+    return;
+  }
+  if ([...hobbyItems(), ...careItems()].some((t) => t.label === label)) {
+    toast('이미 같은 이름이 있어요');
+    return;
+  }
+
+  const tag = {
+    id: `c_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
+    kind: tagDraft.kind,
+    emoji: tagDraft.emoji,
+    label,
+  };
+  state.customTags.push(tag);
+  state.pendingTagDeletes = state.pendingTagDeletes.filter((id) => id !== tag.id);
+  rebuildTagIndex();
+  persist();
+  renderAll();
+  renderMyTags();
+  $('tag-label').value = '';
+  cloudPushTag(tag);
+  toast(`${tag.emoji} ${tag.label} 추가했어요`);
+}
+
+function removeCustomTag(id) {
+  state.customTags = state.customTags.filter((t) => t.id !== id);
+  state.selectedHobbies = state.selectedHobbies.filter((t) => t !== id);
+  state.selectedCare = state.selectedCare.filter((t) => t !== id);
+  if (!state.pendingTagDeletes.includes(id)) state.pendingTagDeletes.push(id);
+  rebuildTagIndex();
+  persist();
+  renderAll();
+  renderMyTags();
+  cloudDeleteTag(id);
 }
 
 /* 구글로 로그인하기 전까지는 익명 계정으로 취급합니다 */
@@ -311,6 +565,8 @@ function renderDoneBanner() {
     queueDelete(todayKey);
     persist();
     renderDoneBanner();
+    renderGrowth();
+    renderLimitBar();
     cloudDelete(todayKey);
   });
 }
@@ -465,9 +721,10 @@ function renderAll() {
   renderDoneBanner();
   renderMascot(false);
   renderMoodRow();
-  renderTagGrid($('hobby-grid'), HOBBIES, state.selectedHobbies, false);
-  renderTagGrid($('care-grid'), SELFCARE, state.selectedCare, true);
+  renderTagGrid($('hobby-grid'), hobbyItems(), state.selectedHobbies, false);
+  renderTagGrid($('care-grid'), careItems(), state.selectedCare, true);
   renderLimitBar();
+  renderGrowth();
   if ($('page-calendar').classList.contains('active')) renderCalendar();
 }
 
@@ -510,6 +767,8 @@ $('oneliner-save').addEventListener('click', () => {
     closeOverlay('overlay-oneliner');
     toast('오늘의 한 줄이 저장됐어요 🌱');
     renderDoneBanner();
+    renderGrowth();
+    renderLimitBar();
   }
 });
 
@@ -535,7 +794,19 @@ $('diary-save').addEventListener('click', () => {
     closeOverlay('overlay-diary');
     toast('오늘의 일기가 저장됐어요 📔');
     renderDoneBanner();
+    renderGrowth();
+    renderLimitBar();
   }
+});
+
+$('grow-card').addEventListener('click', () => {
+  renderGrowSheet();
+  openOverlay('overlay-grow');
+});
+$('water-btn').addEventListener('click', useWateringCan);
+$('tag-save').addEventListener('click', addCustomTag);
+$('tag-label').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') { e.preventDefault(); addCustomTag(); }
 });
 
 $('cal-prev').addEventListener('click', () => {
@@ -671,9 +942,17 @@ async function syncAll() {
       if (upErr) throw upErr;
     }
 
-    if (changed) {
+    let extraChanged = false;
+    try {
+      extraChanged = (await syncTags()) || extraChanged;
+      extraChanged = (await syncWatered()) || extraChanged;
+    } catch { /* 항목·콩나무 동기화 실패는 일기 저장을 막지 않습니다 */ }
+
+    if (changed || extraChanged) {
       hydrateTodaySelection();
       renderAll();
+    } else {
+      renderGrowth();
     }
     persist();
     setSync('ok', syncedLabel());
@@ -682,13 +961,95 @@ async function syncAll() {
   }
 }
 
+/* ---------------- 항목 / 콩나무 상태 동기화 ---------------- */
+async function cloudPushTag(tag) {
+  if (!sb || !userId) return;
+  try {
+    const { error } = await sb.from('tags').upsert({
+      user_id: userId, id: tag.id, kind: tag.kind, emoji: tag.emoji, label: tag.label,
+    }, { onConflict: 'user_id,id' });
+    if (error) throw error;
+  } catch { /* 다음 동기화 때 다시 올라갑니다 */ }
+}
+
+async function cloudDeleteTag(id) {
+  if (!sb || !userId) return;
+  try {
+    const { error } = await sb.from('tags').delete().eq('user_id', userId).eq('id', id);
+    if (error) throw error;
+    state.pendingTagDeletes = state.pendingTagDeletes.filter((t) => t !== id);
+    persist();
+  } catch { /* 다음 동기화 때 다시 시도합니다 */ }
+}
+
+async function cloudPushState() {
+  if (!sb || !userId) return;
+  try {
+    const { error } = await sb.from('user_state').upsert({
+      user_id: userId, watered_dates: state.watered, updated_at: new Date().toISOString(),
+    }, { onConflict: 'user_id' });
+    if (error) throw error;
+  } catch { /* 다음 동기화 때 다시 올라갑니다 */ }
+}
+
+async function syncTags() {
+  if (!sb || !userId) return;
+  for (const id of [...state.pendingTagDeletes]) {
+    const { error } = await sb.from('tags').delete().eq('user_id', userId).eq('id', id);
+    if (!error) state.pendingTagDeletes = state.pendingTagDeletes.filter((t) => t !== id);
+  }
+
+  const { data, error } = await sb.from('tags').select('*');
+  if (error) throw error;
+
+  const remote = new Map((data || []).map((r) => [r.id, r]));
+  const localIds = new Set(state.customTags.map((t) => t.id));
+  let changed = false;
+
+  for (const [id, r] of remote) {
+    if (state.pendingTagDeletes.includes(id) || localIds.has(id)) continue;
+    const t = { id: r.id, kind: r.kind, emoji: r.emoji, label: r.label };
+    if (isValidTag(t)) { state.customTags.push(t); changed = true; }
+  }
+
+  const toPush = state.customTags
+    .filter((t) => !remote.has(t.id))
+    .map((t) => ({ user_id: userId, id: t.id, kind: t.kind, emoji: t.emoji, label: t.label }));
+  if (toPush.length) {
+    const { error: upErr } = await sb.from('tags').upsert(toPush, { onConflict: 'user_id,id' });
+    if (upErr) throw upErr;
+  }
+
+  if (changed) rebuildTagIndex();
+  return changed;
+}
+
+/* 물뿌리개 기록은 더해지기만 하므로 양쪽을 합집합으로 맞춥니다 */
+async function syncWatered() {
+  if (!sb || !userId) return false;
+  const { data, error } = await sb.from('user_state').select('watered_dates').eq('user_id', userId).maybeSingle();
+  if (error) throw error;
+
+  const remote = (data && data.watered_dates) || [];
+  const merged = [...new Set([...state.watered, ...remote])].sort();
+  const changed = merged.length !== state.watered.length;
+  state.watered = merged;
+
+  if (!data || merged.length !== remote.length) await cloudPushState();
+  return changed;
+}
+
 /* 다른 계정으로 바뀌었을 때 이전 사용자의 기록을 이 기기에 남기지 않습니다 */
 function wipeLocalEntries() {
   state.entries = {};
   state.pendingDeletes = [];
+  state.customTags = [];
+  state.pendingTagDeletes = [];
+  state.watered = [];
   state.selectedMood = null;
   state.selectedHobbies = [];
   state.selectedCare = [];
+  rebuildTagIndex();
   persist();
   renderAll();
 }
