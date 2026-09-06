@@ -55,6 +55,17 @@ export function buildReport(year, month, entries, watered, tagById) {
 
   const wateredInMonth = watered.filter((k) => k.startsWith(prefix)).length;
 
+  /* 그 달에 고른 곡들. 같은 곡을 여러 번 골랐으면 횟수로 묶습니다. */
+  const songMap = new Map();
+  for (const k of keys) {
+    const song = entries[k].song;
+    if (!song || !song.id) continue;
+    const hit = songMap.get(song.id);
+    if (hit) hit.count++;
+    else songMap.set(song.id, { song, count: 1 });
+  }
+  const songs = [...songMap.values()].sort((a, b) => b.count - a.count).slice(0, 4);
+
   return {
     year, month, daysInMonth,
     recorded: keys.length,
@@ -64,6 +75,8 @@ export function buildReport(year, month, entries, watered, tagById) {
     wateredInMonth,
     topHobbies: topOf(hobbyCounts, 3),
     topCare: topOf(careCounts, 3),
+    songs,
+    songDays: [...songMap.values()].reduce((n, x) => n + x.count, 0),
     stageIdx: stageIndexFor(longest),
     empty: keys.length === 0,
   };
@@ -81,10 +94,25 @@ function moodSentence(r) {
   return `${parts.join(', ')}을 겪었어요`;
 }
 
+function songRows(songs) {
+  return '<div class="rc-songs">' + songs.map((x) => {
+    const cover = x.song.image
+      ? `<img src="${esc(x.song.image)}" alt="" crossorigin="anonymous">`
+      : '<span class="rc-song-blank"></span>';
+    return '<div class="rc-song">' + cover
+      + '<div class="rc-song-meta">'
+      + `<div class="rc-song-name">${esc(x.song.name)}</div>`
+      + `<div class="rc-song-artist">${esc(x.song.artist || '')}</div></div>`
+      + (x.count > 1 ? `<span class="rc-song-count">${x.count}회</span>` : '')
+      + '</div>';
+  }).join('') + '</div>';
+}
+
 function closingLine(r) {
   if (r.recorded >= r.daysInMonth * 0.8) return '거의 매일을 남겼네요. 대단해요 🌟';
   if (r.longest >= 7) return `${r.longest}일이나 이어간 달이었어요 🌱`;
   if (r.wateredInMonth > 0) return '물뿌리개까지 써가며 이어온 한 달이었어요 💧';
+  if (r.songs.length) return `${r.songDays}일을 노래와 함께 남겼어요 🎵`;
   if (r.recorded >= 10) return '꾸준히 쌓인 한 달이에요';
   return '한 줄이라도 남긴 날들이 모였어요';
 }
@@ -148,6 +176,8 @@ export function reportCardHTML(r) {
 
   <p class="rc-label">자기관리</p>
   ${tagRow(r.topCare)}
+
+  ${r.songs.length ? `<p class="rc-label">이 달의 플레이리스트</p>${songRows(r.songs)}` : ''}
 
   <p class="rc-closing">${closingLine(r)}</p>
   <p class="rc-foot">🌱 하루콩</p>

@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>하루콩 — 스포티파이 연결 중</title>
+<style>
+  body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;
+       background:#FFFCF5;color:#4A4038;font-family:system-ui,-apple-system,'Malgun Gothic',sans-serif;}
+  @media (prefers-color-scheme:dark){body{background:#211C16;color:#EDE4D3;}}
+  p{font-size:14px;}
+</style>
+</head>
+<body>
+<p>스포티파이 연결 중…</p>
+<script>
+/* 구글 로그인도 ?code= 로 돌아오기 때문에 스포티파이 콜백은 이 경로에서만 받습니다.
+   여기서는 결과만 넘겨두고 곧바로 앱으로 돌아갑니다. */
+(function () {
+  var p = new URLSearchParams(location.search);
+  try {
+    localStorage.setItem('harukong.spotify.callback.v1', JSON.stringify({
+      code: p.get('code') || '',
+      error: p.get('error') || ''
+    }));
+  } catch (e) { /* 저장을 못 해도 앱으로는 돌아갑니다 */ }
+  location.replace('/');
+})();
+</script>
+</body>
+</html>

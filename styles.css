@@ -684,6 +684,79 @@ button{
   text-decoration:underline;cursor:pointer;
 }
 
+/* ---------------- 오늘의 노래 ---------------- */
+.song-row{
+  display:flex;align-items:center;gap:10px;width:100%;
+  margin:2px 0 4px;padding:9px 11px;
+  border:1.5px solid var(--line);border-radius:14px;
+  background:var(--surface-2);cursor:pointer;text-align:left;
+}
+.song-row-inner{flex:1 1 auto;min-width:0;display:flex;align-items:center;gap:9px;}
+.song-row-act{flex:0 0 auto;font-size:var(--fs-micro);color:var(--mint-deep);font-weight:700;}
+.song-cover{
+  width:34px;height:34px;border-radius:8px;flex:0 0 auto;
+  object-fit:cover;background:var(--line-soft);
+}
+.song-meta{min-width:0;display:flex;flex-direction:column;gap:1px;}
+.song-name{
+  font-size:var(--fs-small);color:var(--ink);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.song-artist{
+  font-size:var(--fs-micro);color:var(--ink-soft);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.song-empty{font-size:var(--fs-small);color:var(--ink-faint);}
+
+#song-q{
+  display:block;width:100%;
+  border:1.5px solid var(--line);border-radius:12px;
+  padding:11px 13px;font-size:16px;
+  font-family:'Gowun Dodum',sans-serif;
+  color:var(--ink);background:var(--surface-2);margin:0 0 10px;
+}
+#song-q:focus{outline:none;border-color:var(--mint);}
+
+.song-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:5px;}
+.song-list li button{
+  display:flex;align-items:center;gap:10px;width:100%;
+  padding:8px 9px;border-radius:12px;
+  border:1.5px solid transparent;background:none;cursor:pointer;text-align:left;
+}
+.song-list li button:active{background:var(--mint-pale);}
+.song-list li button.picked{border-color:var(--mint);background:var(--mint-pale);}
+.song-hint{margin:12px 0 0;font-size:var(--fs-tiny);color:var(--ink-faint);text-align:center;word-break:keep-all;}
+
+.song-connect{padding:6px 0 2px;text-align:center;}
+.song-connect p{margin:0 0 14px;font-size:var(--fs-small);color:var(--ink-soft);line-height:1.6;word-break:keep-all;}
+.btn-spotify{
+  display:flex;align-items:center;justify-content:center;gap:9px;
+  width:100%;padding:13px 12px;
+  border:none;border-radius:14px;
+  background:#1DB954;color:#fff;
+  font-size:var(--fs-base);font-weight:700;cursor:pointer;
+}
+.btn-spotify svg{width:19px;height:19px;flex:0 0 auto;}
+
+/* 기록 상세 / 리포트의 노래 */
+.dd-song{
+  display:flex;align-items:center;gap:10px;
+  margin:0 0 12px;padding:9px 11px;
+  border-radius:12px;background:var(--surface-2);border:1.5px solid var(--line);
+  text-decoration:none;color:inherit;
+}
+.rc-song{
+  display:flex;align-items:center;gap:9px;
+  padding:8px 10px;border-radius:12px;
+  background:#FFFFFF;border:1.5px solid #EAE0CC;
+  margin-bottom:6px;text-align:left;
+}
+.rc-song img{width:34px;height:34px;border-radius:7px;flex:0 0 auto;object-fit:cover;background:#EFE9DA;}
+.rc-song-meta{min-width:0;}
+.rc-song-name{font-size:12px;color:#4A4038;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.rc-song-artist{font-size:10.5px;color:#8C8172;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.rc-song-count{margin-left:auto;flex:0 0 auto;font-size:11px;color:#4C8C5A;font-weight:700;}
+
 /* ---------------- 월간 리포트 ---------------- */
 .cal-report-btn{
   font-size:var(--fs-micro) !important;
@@ -780,6 +853,9 @@ button{
 .rc-tags b{color:#4C8C5A;}
 .rc-tag-emoji{font-size:13px;}
 .rc-none{margin:0 0 16px;font-size:12px;color:#BDB2A0;text-align:left;}
+
+.rc-songs{margin-bottom:16px;}
+.rc-song-blank{width:34px;height:34px;border-radius:7px;flex:0 0 auto;background:#EFE9DA;display:block;}
 
 .rc-closing{
   margin:4px 0 0;padding-top:14px;border-top:1.5px dashed #EAE0CC;

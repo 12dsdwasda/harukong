@@ -148,6 +148,10 @@
              autocomplete="off" autocapitalize="sentences"
              placeholder="예) 점심에 먹은 떡볶이가 최고였다">
       <p class="char-count"><span id="oneliner-count">0</span>/60</p>
+      <button class="song-row" type="button" id="oneliner-song" hidden>
+        <span class="song-row-inner" id="oneliner-song-inner"></span>
+        <span class="song-row-act">고르기</span>
+      </button>
     </div>
     <div class="sheet-actions">
       <button class="cancel" type="button" data-close="overlay-oneliner">취소</button>
@@ -168,6 +172,10 @@
       <textarea id="diary-text" maxlength="500" rows="6"
                 placeholder="오늘 있었던 일, 느꼈던 감정을 적어보세요…"></textarea>
       <p class="char-count"><span id="diary-count">0</span>/500</p>
+      <button class="song-row" type="button" id="diary-song" hidden>
+        <span class="song-row-inner" id="diary-song-inner"></span>
+        <span class="song-row-act">고르기</span>
+      </button>
     </div>
     <div class="sheet-actions">
       <button class="cancel" type="button" data-close="overlay-diary">취소</button>
@@ -229,6 +237,28 @@
     <div class="sheet-actions">
       <button class="cancel" type="button" data-close="overlay-tag">취소</button>
       <button class="confirm" type="button" id="tag-save">추가</button>
+    </div>
+  </div>
+</div>
+
+<!-- ---------------- 오늘의 노래 ---------------- -->
+<div class="overlay" id="overlay-song" role="dialog" aria-modal="true" aria-labelledby="song-h">
+  <div class="sheet sheet-tall">
+    <div class="sheet-handle" aria-hidden="true"></div>
+    <h2 id="song-h">🎵 오늘의 노래</h2>
+    <p class="sheet-sub" id="song-sub">오늘 하루에 어울리는 곡을 골라보세요</p>
+    <div class="sheet-body">
+      <div id="song-connect-slot"></div>
+      <div id="song-search-slot" hidden>
+        <input type="search" id="song-q" enterkeyhint="search" autocomplete="off"
+               placeholder="곡 제목이나 가수 이름">
+        <ul class="song-list" id="song-results"></ul>
+        <p class="song-hint" id="song-hint">검색해서 곡을 고르면 오늘 기록에 함께 남아요</p>
+      </div>
+    </div>
+    <div class="sheet-actions">
+      <button class="cancel" type="button" data-close="overlay-song">닫기</button>
+      <button class="confirm" type="button" id="song-clear" hidden>선택 지우기</button>
     </div>
   </div>
 </div>

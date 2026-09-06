@@ -7,6 +7,7 @@ import { SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY } from './config.js';
 import { STAGES, CANS_PER_MONTH, stageIndexFor, daysToNextStage, plantSVG } from './growth.js';
 import { MOOD_ORDER, MOODS, beanSVG } from './mood.js';
 import { buildReport, reportCardHTML } from './report.js';
+import * as spotify from './spotify.js';
 
 /* ---------------- 태그 ---------------- */
 const HOBBIES = [
@@ -100,6 +101,7 @@ function normalizeEntry(raw) {
     kind: raw.kind === 'diary' || raw.type === 'diary' ? 'diary' : 'oneliner',
     title: typeof raw.title === 'string' ? raw.title : '',
     body: typeof raw.body === 'string' ? raw.body : (typeof raw.text === 'string' ? raw.text : ''),
+    song: spotify.isValidSong(raw.song) ? raw.song : null,
     updatedAt: raw.updatedAt || raw.savedAt || new Date(0).toISOString(),
   };
 }
@@ -236,6 +238,109 @@ function renderHomeHeader() {
   const hour = new Date().getHours();
   $('home-greeting').textContent =
     hour < 11 ? '좋은 아침이에요 🌤️' : hour < 18 ? '오늘 하루는 어땠나요?' : '오늘 하루도 고생 많았어요 🌙';
+}
+
+/* ---------------- 오늘의 노래 ---------------- */
+let songDraft = null;        // 지금 작성 중인 기록에 붙일 곡
+let songTarget = 'oneliner'; // 어느 시트에서 열었는지
+let songSearchTimer = null;
+
+function songRowHTML(song) {
+  if (!song) return '<span class="song-empty">🎵 오늘의 노래 고르기</span>';
+  const cover = song.image
+    ? `<img class="song-cover" src="${escapeHTML(song.image)}" alt="">`
+    : '<span class="song-cover"></span>';
+  return cover
+    + '<span class="song-meta">'
+    + `<span class="song-name">${escapeHTML(song.name)}</span>`
+    + `<span class="song-artist">${escapeHTML(song.artist || '')}</span>`
+    + '</span>';
+}
+
+function renderSongRows() {
+  const on = spotify.isConfigured();
+  for (const [btn, inner] of [['oneliner-song', 'oneliner-song-inner'], ['diary-song', 'diary-song-inner']]) {
+    $(btn).hidden = !on;
+    if (on) $(inner).innerHTML = songRowHTML(songDraft);
+  }
+}
+
+function openSongSheet(target) {
+  songTarget = target;
+  $('song-q').value = '';
+  $('song-results').innerHTML = '';
+  $('song-hint').textContent = '검색해서 곡을 고르면 오늘 기록에 함께 남아요';
+  $('song-clear').hidden = !songDraft;
+  renderSongConnect();
+  openOverlay('overlay-song');
+}
+
+function renderSongConnect() {
+  const slot = $('song-connect-slot');
+  const search = $('song-search-slot');
+  if (spotify.isConnected()) {
+    slot.innerHTML = '';
+    search.hidden = false;
+    setTimeout(() => $('song-q').focus(), 120);
+    return;
+  }
+  search.hidden = true;
+  slot.innerHTML = '<div class="song-connect">'
+    + '<p>스포티파이를 연결하면 곡을 검색해서 오늘 기록에 남길 수 있어요.<br>'
+    + '재생은 하지 않고 곡 정보만 가져옵니다.</p>'
+    + '<button class="btn-spotify" type="button" id="song-connect-btn">'
+    + '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">'
+    + '<path d="M12 2a10 10 0 100 20 10 10 0 000-20zm4.6 14.4a.62.62 0 01-.86.21c-2.35-1.44-5.3-1.76-8.79-.96a.62.62 0 11-.28-1.21c3.81-.87 7.08-.5 9.72 1.11.29.18.39.57.21.85zm1.23-2.74a.78.78 0 01-1.07.26c-2.69-1.65-6.79-2.13-9.97-1.17a.78.78 0 11-.45-1.49c3.63-1.1 8.15-.57 11.24 1.33.36.22.48.7.25 1.07zm.11-2.86C14.72 8.88 9.4 8.7 6.32 9.63a.93.93 0 11-.54-1.78c3.54-1.08 9.41-.87 13.12 1.33a.93.93 0 11-.95 1.6z"/>'
+    + '</svg>스포티파이 연결하기</button></div>';
+  $('song-connect-btn').addEventListener('click', async () => {
+    try { await spotify.connect(); } catch { toast('스포티파이 연결을 시작하지 못했어요'); }
+  });
+}
+
+function renderSongResults(items) {
+  const ul = $('song-results');
+  ul.innerHTML = '';
+  for (const song of items) {
+    const li = document.createElement('li');
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    if (songDraft && songDraft.id === song.id) btn.className = 'picked';
+    btn.innerHTML = songRowHTML(song);
+    btn.addEventListener('click', () => {
+      songDraft = song;
+      renderSongRows();
+      renderSongResults(items);
+      $('song-clear').hidden = false;
+      toast(`🎵 ${song.name}`);
+    });
+    li.appendChild(btn);
+    ul.appendChild(li);
+  }
+  $('song-hint').textContent = items.length ? '' : '검색 결과가 없어요';
+}
+
+async function runSongSearch() {
+  const q = $('song-q').value.trim();
+  if (!q) { $('song-results').innerHTML = ''; $('song-hint').textContent = ''; return; }
+  $('song-hint').textContent = '찾는 중…';
+  try {
+    renderSongResults(await spotify.searchTracks(q));
+  } catch (err) {
+    if (String(err.message) === 'not connected') {
+      renderSongConnect();
+      toast('스포티파이를 다시 연결해주세요');
+    } else {
+      $('song-hint').textContent = '검색에 실패했어요';
+    }
+  }
+}
+
+async function initSpotify() {
+  if (!spotify.isConfigured()) return;
+  const result = await spotify.consumeCallback();
+  if (result === 'ok') toast('스포티파이를 연결했어요 🎵');
+  else if (result === 'error') toast('스포티파이 연결에 실패했어요');
+  renderSongRows();
 }
 
 /* ---------------- 월간 리포트 ---------------- */
@@ -634,6 +739,7 @@ function saveEntry(kind, payload) {
     kind,
     title: payload.title || '',
     body: payload.body,
+    song: songDraft,
     updatedAt: new Date().toISOString(),
   };
   state.pendingDeletes = state.pendingDeletes.filter((k) => k !== todayKey);
@@ -714,6 +820,10 @@ function openDetail(key) {
       + `<div class="dd-date">${dateStr}</div>`
       + `<div class="dd-mood-label">${MOODS[e.mood].label}</div></div></div>`
       + (tags ? `<div class="dd-tags">${tags}</div>` : '')
+      + (e.song
+        ? `<a class="dd-song" href="${escapeHTML(e.song.url || '#')}" target="_blank" rel="noopener">`
+          + songRowHTML(e.song) + '</a>'
+        : '')
       + (e.title ? `<p class="dd-title">${escapeHTML(e.title)}</p>` : '')
       + `<p class="dd-text">${escapeHTML(e.body)}</p>`;
   }
@@ -767,6 +877,8 @@ $('btn-oneliner').addEventListener('click', () => {
   if (blockedByLimit()) { promptSignIn(); return; }
   const cur = state.entries[todayKey];
   const val = cur && cur.kind === 'oneliner' ? cur.body : '';
+  songDraft = (cur && cur.song) || null;
+  renderSongRows();
   $('oneliner-input').value = val;
   $('oneliner-count').textContent = String(val.length);
   openOverlay('overlay-oneliner');
@@ -795,6 +907,8 @@ $('btn-diary').addEventListener('click', () => {
   if (blockedByLimit()) { promptSignIn(); return; }
   const cur = state.entries[todayKey];
   const isDiary = cur && cur.kind === 'diary';
+  songDraft = (cur && cur.song) || null;
+  renderSongRows();
   $('diary-title').value = isDiary ? cur.title : '';
   $('diary-text').value = isDiary ? cur.body : '';
   $('diary-count').textContent = String(isDiary ? cur.body.length : 0);
@@ -815,6 +929,24 @@ $('diary-save').addEventListener('click', () => {
     renderGrowth();
     renderLimitBar();
   }
+});
+
+$('oneliner-song').addEventListener('click', () => openSongSheet('oneliner'));
+$('diary-song').addEventListener('click', () => openSongSheet('diary'));
+$('song-q').addEventListener('input', () => {
+  clearTimeout(songSearchTimer);
+  songSearchTimer = setTimeout(runSongSearch, 350);
+});
+$('song-q').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') { e.preventDefault(); clearTimeout(songSearchTimer); runSongSearch(); }
+});
+$('song-clear').addEventListener('click', () => {
+  songDraft = null;
+  renderSongRows();
+  $('song-clear').hidden = true;
+  $('song-results').innerHTML = '';
+  $('song-q').value = '';
+  toast('노래 선택을 지웠어요');
 });
 
 $('cal-report').addEventListener('click', () => {
@@ -894,6 +1026,7 @@ function toRow(key, e) {
     kind: e.kind,
     title: e.title,
     body: e.body,
+    song: e.song,
     updated_at: e.updatedAt,
   };
 }
@@ -954,7 +1087,7 @@ async function syncAll() {
       if (!local || new Date(r.updated_at) > new Date(local.updatedAt)) {
         state.entries[key] = normalizeEntry({
           mood: r.mood, hobbies: r.hobbies, care: r.care,
-          kind: r.kind, title: r.title, body: r.body, updatedAt: r.updated_at,
+          kind: r.kind, title: r.title, body: r.body, song: r.song, updatedAt: r.updated_at,
         });
         changed = true;
       }
@@ -1289,4 +1422,6 @@ document.addEventListener('visibilitychange', () => {
 loadLocal();
 hydrateTodaySelection();
 renderAll();
+renderSongRows();
 initCloud();
+initSpotify();
