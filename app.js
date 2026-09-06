@@ -527,6 +527,7 @@ const LS_MERGE_FLAG = 'harukong.mergeOnSignIn.v1';
 let sb = null;
 let userId = null;
 let account = { signedIn: false, anonymous: true, email: '' };
+let googleEnabled = null; // null = 아직 모름, false 면 버튼을 숨깁니다
 
 const lsGet = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
 const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch { /* noop */ } };
@@ -646,6 +647,19 @@ function wipeLocalEntries() {
 }
 
 /* ---------------- 계정 ---------------- */
+/* 구글 프로바이더가 꺼져 있으면 로그인 버튼을 눌러도 오류 페이지로 빠지므로,
+   프로젝트 설정을 읽어 준비됐을 때만 버튼을 보여줍니다. */
+async function refreshProviders() {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/auth/v1/settings`, {
+      headers: { apikey: SUPABASE_PUBLISHABLE_KEY },
+    });
+    if (!res.ok) return;
+    const cfg = await res.json();
+    googleEnabled = !!(cfg.external && cfg.external.google);
+  } catch { /* 못 읽으면 판단을 보류하고 버튼은 그대로 둡니다 */ }
+}
+
 function renderAccountSheet() {
   const body = $('account-body');
   if (!sb || !userId) {
@@ -663,13 +677,20 @@ function renderAccountSheet() {
       + '<p class="acct-note">어느 기기에서든 이 계정으로 로그인하면 같은 일기를 볼 수 있어요.</p>';
   }
   const signedInWithGoogle = account.signedIn && !account.anonymous;
-  $('acct-google').hidden = signedInWithGoogle;
+  const googleReady = googleEnabled !== false;
+  if (!signedInWithGoogle && !googleReady) {
+    body.insertAdjacentHTML('beforeend',
+      '<p class="acct-note warn">구글 로그인은 아직 준비 중이에요. 그동안에도 기록은 안전하게 백업됩니다.</p>');
+  }
+  $('acct-google').hidden = signedInWithGoogle || !googleReady;
   $('acct-signout').hidden = !signedInWithGoogle;
 }
 
 function openAccountSheet() {
   renderAccountSheet();
   openOverlay('overlay-account');
+  // 대시보드에서 방금 켰더라도 새로고침 없이 반영되도록 다시 확인합니다
+  refreshProviders().then(renderAccountSheet);
 }
 
 function googleErrorMessage(err) {
@@ -770,6 +791,8 @@ async function initCloud() {
       const isAnon = session.user.is_anonymous === true;
       if (session.user.id !== userId || isAnon !== account.anonymous) applySession(session);
     });
+
+    refreshProviders();
 
     let { data: { session } } = await sb.auth.getSession();
     consumeAuthRedirect();
